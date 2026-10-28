@@ -15,11 +15,16 @@ import { InvoiceDocument } from './InvoiceDocument'
 export function PrintDialog({
   rent,
   invoice,
+  set = [],
+  onPick,
   onClose,
   saveLabel = 'Зберегти PDF',
 }: {
   rent: Rent
   invoice: Invoice | null
+  /** Рахунки, що відкрились разом; більше одного — перемикач над бланком. */
+  set?: Invoice[]
+  onPick?: (invoice: Invoice) => void
   onClose: () => void
   saveLabel?: string
 }) {
@@ -47,6 +52,27 @@ export function PrintDialog({
                 </Button>
               </div>
             </div>
+            {set.length > 1 && (
+              <div className="flex gap-1" role="tablist" aria-label="Рахунки" data-print-hide="">
+                {set.map((i) => (
+                  <button
+                    key={i.id}
+                    type="button"
+                    role="tab"
+                    aria-selected={i.id === invoice.id}
+                    onClick={() => onPick?.(i)}
+                    data-testid="print-set-tab"
+                    className={
+                      i.id === invoice.id
+                        ? 'rounded-md border border-fg bg-fg px-2.5 py-1 text-label font-medium text-primary-fg'
+                        : 'rounded-md border border-border bg-card px-2.5 py-1 text-label text-fg-2 hover:bg-muted'
+                    }
+                  >
+                    № {i.number ?? 'очікується'} — {i.kind === 'deposit' ? 'застава' : 'оренда'}
+                  </button>
+                ))}
+              </div>
+            )}
             <div data-public-invoice="" className="rounded-md border border-border">
               <InvoiceDocument rent={rent} invoice={invoice} />
             </div>

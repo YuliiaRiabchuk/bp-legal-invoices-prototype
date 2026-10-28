@@ -14,6 +14,7 @@ export interface VariantDef {
 
 export const VARIANTS: VariantDef[] = [
   { code: '0', label: 'Чинний прод', note: 'рахунок у рядку «Банківський переказ», порт коду CRM; антиреференс і база вимірів' },
+  { code: 'B', label: 'Рахунки в рейлі', note: 'стос рахунків і «+ Рахунок» у рейлі на всіх етапах; продовження (б): «грошей вистачить до»' },
 ]
 
 export type Role = 'manager' | 'head'

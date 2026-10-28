@@ -28,7 +28,16 @@ const argOf = (flag, fallback) => {
   return i > -1 && process.argv[i + 1] ? process.argv[i + 1] : fallback
 }
 const BASE = argOf('--url', 'http://localhost:5173/bp-legal-invoices-prototype/')
-const CHROME = 'C:/Program Files/Google/Chrome/Application/chrome.exe'
+// Chrome за платформою; інший шлях — `--chrome` або змінна CHROME_PATH.
+const CHROME = argOf(
+  '--chrome',
+  process.env.CHROME_PATH ??
+    (process.platform === 'darwin'
+      ? '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
+      : process.platform === 'win32'
+        ? 'C:/Program Files/Google/Chrome/Application/chrome.exe'
+        : '/usr/bin/google-chrome'),
+)
 const SHOTS = process.argv.includes('--shots')
 const JSON_OUT = argOf('--json', null)
 const VARIANTS = argOf('--variants', '0').split(',')
@@ -250,6 +259,63 @@ const DRIVERS = {
       await run.click('[data-testid="method-radio-cash"]')
       await run.click('[data-testid="method-done"]')
       await run.click('[data-testid="method-row"][data-method="cash"] [data-testid="row-confirm"]')
+      return true
+    },
+  },
+  /**
+   * Варіант B — рахунки в рейлі. Усе робиться з рейлу на тому етапі, де
+   * менеджер стоїть: «+ Рахунок» розгортає бланк тут же.
+   */
+  B: {
+    /** Сцена 1: два рахунки створено на вході в «Оплату» (D1), кліків немає. */
+    async start() {
+      return true
+    },
+    /** Сцена 2: доставки ще немає в нарахуваннях — вільний рядок бланка, як «+» у 1С. */
+    async delivery(run) {
+      await run.click('[data-testid="rail-b-add-invoice"]')
+      await run.select('[data-testid="composer-free-article"]', 'delivery')
+      await run.type('[data-testid="composer-free-price"]', 1000)
+      await run.click('[data-testid="composer-submit"]')
+      return true
+    },
+    /** Сцена 3: підказка «наступний період», межа за ритмом 15/30 уже стоїть. */
+    async period(run) {
+      await run.click('[data-testid="next-period"]')
+      await run.click('[data-testid="composer-submit"]')
+      return true
+    },
+    /** Сцена 4а: кнопки продовження немає — рахунок на новий період «по» +7 діб. */
+    async extend(run) {
+      await run.click('[data-testid="next-period"]')
+      await run.date('[data-testid="composer-period-to"]', '2026-11-05')
+      await run.click('[data-testid="composer-submit"]')
+      return true
+    },
+    /** Сцена 4б: «грошей вистачить до» у блоці «Оренда» рейлу, без кліків. */
+    async coveredUntil() {
+      return !!(await page.$('[data-testid="covered-until"]'))
+    },
+    async cancel(run) {
+      await run.click('[data-testid="invoice-card"][data-number="1140"] [data-testid="invoice-menu"]')
+      await run.click('[data-testid="invoice-cancel"]')
+      await run.click('[data-testid="cancel-submit"]')
+      return true
+    },
+    async noNumber() {
+      return true
+    },
+    /** Сцена 6: стос рахунків — кожна платіжка під своїм рахунком, 0 кліків. */
+    async answerFive() {
+      return true
+    },
+    async closedPrint(run) {
+      await run.click('[data-testid="invoice-card"][data-number="1102"] [data-testid="invoice-print"]')
+      return true
+    },
+    async cash(run) {
+      await run.click('[data-testid="open-charge-cash"]')
+      await run.click('[data-testid="cash-submit"]')
       return true
     },
   },

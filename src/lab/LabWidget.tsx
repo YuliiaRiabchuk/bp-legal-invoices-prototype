@@ -180,7 +180,7 @@ export function LabWidget() {
         <section className="border-b border-border px-3 py-2.5">
           <Label>Сцена</Label>
           <div className="mt-1.5 flex flex-wrap gap-1">
-            {SCENES.map((s) => (
+            {SCENES.filter((s) => !s.edge).map((s) => (
               <Chip
                 key={s.id}
                 active={lab.sceneId === s.id}
@@ -194,12 +194,22 @@ export function LabWidget() {
           <p className="mt-1.5 text-label text-muted-fg">
             {SCENES.find((s) => s.id === lab.sceneId)?.proves}
           </p>
+          <div className="mt-2">
+            <Label>Крайні стани</Label>
+          </div>
+          <div className="mt-1.5 flex flex-wrap gap-1">
+            {SCENES.filter((s) => s.edge).map((s) => (
+              <Chip key={s.id} active={lab.sceneId === s.id} onClick={() => lab.setScene(s.id)} title={s.proves}>
+                {s.title}
+              </Chip>
+            ))}
+          </div>
         </section>
 
         {/* ── Контрагент, роль, етап ────────────────────────────────── */}
         <section className="px-3 py-2.5">
           <div className="flex flex-wrap items-center gap-1">
-            <Chip active={lab.party === 'fl'} disabled title="Фізособа — чинним флоу, з етапу 4" onClick={() => lab.setParty('fl')}>
+            <Chip active={lab.party === 'fl'} title="Фізособа — чинним флоу проду; варіанти стосуються тільки юрособи" onClick={() => lab.setParty('fl')}>
               Фізособа
             </Chip>
             <Chip active={lab.party === 'ul'} onClick={() => lab.setParty('ul')}>
@@ -212,6 +222,9 @@ export function LabWidget() {
               </Chip>
             ))}
           </div>
+          {lab.party === 'ul' && (
+            <p className="mt-1.5 text-label text-muted-fg">Для юрособи роль нічого не змінює: блокуючих гейтів немає, лише попередження (C4).</p>
+          )}
           <div className="mt-2.5">
             <Label>Етап</Label>
           </div>

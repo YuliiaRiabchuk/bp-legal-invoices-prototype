@@ -21,10 +21,10 @@ export default function App() {
 }
 
 function Shell() {
-  const { resetKey, sceneId, step } = useLab()
+  const { resetKey, sceneId, step, party } = useLab()
   return (
     <div className="flex h-screen flex-col overflow-hidden bg-shell">
-      <StoreProvider key={resetKey} initial={buildRent(sceneId as SceneId, step)}>
+      <StoreProvider key={resetKey} initial={buildRent(sceneId as SceneId, step, party)}>
         <main className="min-h-0 flex-1">
           <RentCard />
         </main>

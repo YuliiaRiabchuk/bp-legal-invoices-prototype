@@ -42,6 +42,22 @@ export type Action =
       period?: Invoice['period']
     }
   | { type: 'INVOICE_EDIT'; id: string; lines: InvoiceLine[]; period?: Invoice['period'] }
+  /**
+   * Нові варіанти: рахунок зі складу, який зібрав менеджер. Вільні рядки
+   * («як у 1С») народжують нарахування — рядок посилається на нього як
+   * `from.chargeId = 'new:<key>'`. З `editId` — правка неоплаченого рахунку,
+   * номер 1С лишається (B1).
+   */
+  | {
+      type: 'INVOICE_COMPOSE'
+      kind: Invoice['kind']
+      lines: InvoiceLine[]
+      period?: Invoice['period']
+      newCharges?: { key: string; charge: Omit<Charge, 'id' | 'createdAt' | 'createdBy'> }[]
+      editId?: string
+    }
+  /** Нові варіанти: перехід «Оформлення → Оплата» сам формує оренду і заставу (D1, пропозиція). */
+  | { type: 'START_PAYMENT'; rentLines: InvoiceLine[]; depositLines: InvoiceLine[] }
   | { type: 'INVOICE_CANCEL'; id: string; comment?: string }
   | { type: 'NUMBERS_ARRIVE' }
   | { type: 'CHARGE_ADD'; charge: Omit<Charge, 'id' | 'createdAt' | 'createdBy'> }
@@ -123,6 +139,74 @@ function reducer(state: State, action: Action): State {
       }
       const inv = rent.invoices.find((i) => i.id === action.id)!
       rent = withEvent(rent, s, { kind: 'invoice-edit', text: `Рахунок № ${inv.number ?? '—'} змінено: ${formatMoney(invoiceTotal(inv))}` })
+      return { ...s, rent }
+    }
+
+    case 'INVOICE_COMPOSE': {
+      let s = tick(state)
+      // Вільні рядки спершу стають нарахуваннями: склад рахунку — це завжди
+      // нарахування оренди, навіть якщо менеджер завів його прямо в бланку.
+      const ids = new Map<string, string>()
+      let rent = s.rent
+      for (const { key, charge } of action.newCharges ?? []) {
+        const id = `ch-n${s.seq}-${key}`
+        ids.set(`new:${key}`, id)
+        rent = { ...rent, charges: [...rent.charges, { id, createdAt: stamp(s), createdBy: MANAGER.name, ...charge }] }
+        rent = withEvent(rent, s, { kind: 'charge', text: `Нарахування «${charge.article}» ${formatMoney(charge.net)} без ПДВ` })
+        s = tick({ ...s, rent })
+      }
+      const lines = action.lines.map((l) =>
+        l.from?.chargeId && ids.has(l.from.chargeId) ? { ...l, from: { ...l.from, chargeId: ids.get(l.from.chargeId)! } } : l,
+      )
+      if (action.editId) {
+        rent = {
+          ...rent,
+          invoices: rent.invoices.map((i) =>
+            i.id === action.editId ? { ...i, kind: action.kind, lines, period: action.period } : i,
+          ),
+        }
+        const inv = rent.invoices.find((i) => i.id === action.editId)!
+        rent = withEvent(rent, s, { kind: 'invoice-edit', text: `Рахунок № ${inv.number ?? '—'} змінено: ${formatMoney(invoiceTotal(inv))}; номер той самий` })
+        return { ...s, rent }
+      }
+      const invoice: Invoice = {
+        id: `inv-n${s.seq}`,
+        kind: action.kind,
+        number: null,
+        numberState: 'pending',
+        date: rent.today,
+        createdAt: stamp(s),
+        createdBy: MANAGER.name,
+        period: action.period,
+        lines,
+        orgId: rent.orgId,
+      }
+      rent = { ...rent, invoices: [...rent.invoices, invoice] }
+      rent = withEvent(rent, s, { kind: 'invoice', text: `Сформовано рахунок на ${describe(invoice)}; № очікується від 1С` })
+      return { ...s, rent }
+    }
+
+    case 'START_PAYMENT': {
+      const s = tick(state)
+      const mk = (kind: Invoice['kind'], lines: InvoiceLine[], n: number, period?: Invoice['period']): Invoice => ({
+        id: `inv-n${s.seq}-${n}`,
+        kind,
+        number: null,
+        numberState: 'pending',
+        date: s.rent.today,
+        createdAt: stamp(s),
+        createdBy: MANAGER.name,
+        period,
+        lines,
+        orgId: s.rent.orgId,
+        auto: true,
+      })
+      const pair = [
+        mk('rent', action.rentLines, 1, { from: s.rent.issueAt, to: s.rent.returnAt }),
+        mk('deposit', action.depositLines, 2),
+      ]
+      let rent: Rent = { ...s.rent, status: 'PENDING_PAYMENT', invoices: [...s.rent.invoices, ...pair] }
+      rent = withEvent(rent, s, { kind: 'invoice', who: 'Система', text: `Перехід до оплати: сформовано рахунки на оренду і заставу; № очікується від 1С` })
       return { ...s, rent }
     }
 

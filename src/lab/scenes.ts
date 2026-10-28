@@ -16,6 +16,8 @@ export interface Scene {
   stage: StageKey
   /** Що ця сцена має довести. */
   proves: string
+  /** Крайній стан (§6 брифу), а не сцена §5: у прогоні сцен не бере участі. */
+  edge?: true
 }
 
 export const SCENES: Scene[] = [
@@ -31,6 +33,8 @@ export const SCENES: Scene[] = [
   { id: 'docs', n: '9', title: 'Документи під рахунком', party: 'ul', stage: 'active', proves: 'оплачений рахунок, під ним АВР з 1С; реалізація — з видатковою' },
   { id: 'closed', n: '10', title: 'Рахунок як документ', party: 'ul', stage: 'closing', proves: 'закрита оренда: рахунок № 1102 на перегляд і друк, стан не змінюється' },
   { id: 'cash', n: '11', title: 'Готівка від ЮЛ', party: 'ul', stage: 'active', proves: 'чистка 600 готівкою: ПКО на ФОП, рахунки не змінюються' },
+  { id: 'edge-zero', n: '0', title: 'Нуль рахунків', party: 'ul', stage: 'draft', proves: 'оренда в оформленні, рахунків ще немає; перехід до оплати сам формує оренду і заставу', edge: true },
+  { id: 'edge-ten', n: '10+', title: 'Десять рахунків', party: 'ul', stage: 'active', proves: 'десять рахунків, довга назва ТОВ і послуги, переплата, недоплата, скасований', edge: true },
 ]
 
 export const SCENE_BY_ID = new Map<string, Scene>(SCENES.map((s) => [s.id, s]))

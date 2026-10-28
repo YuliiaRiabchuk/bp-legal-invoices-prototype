@@ -100,6 +100,8 @@ export interface Invoice {
   lines: InvoiceLine[]
   orgId: string
   cancelled?: { by: string; at: string; comment?: string }
+  /** Створений системою на переході «Оформлення → Оплата» (D1, пропозиція). */
+  auto?: true
 }
 
 /**

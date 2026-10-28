@@ -19,19 +19,20 @@ import type { Invoice } from '@/mock/types'
  * Скрол живе в області вмісту: `globals.css` ставить `html { overflow: clip }`.
  */
 export function RentCard() {
-  const { step, stage, setStage } = useLab()
+  const { step, stage, setStage, party } = useLab()
   const { rent } = useStore()
-  const ui = VARIANT_UI[step] ?? VARIANT_UI['0']
+  // Фізособа — чинним флоу: у скоупі прототипу тільки юрособа.
+  const ui = party === 'fl' ? VARIANT_UI['0'] : (VARIANT_UI[step] ?? VARIANT_UI['0'])
   const [tab, setTab] = useState(ui.tabs[0])
   const [chronology, setChronology] = useState(false)
-  const [printing, setPrinting] = useState<Invoice | null>(null)
+  const [printing, setPrinting] = useState<{ id: string; set: string[] } | null>(null)
   const [errand, setErrand] = useState<CardActions['errand']>(null)
 
   const actions = useMemo<CardActions>(
     () => ({
       tab,
       setTab: (t) => (t === 'Хронологія' ? setChronology(true) : setTab(t)),
-      openPrint: setPrinting,
+      openPrint: (inv, set) => setPrinting({ id: inv.id, set: (set ?? [inv]).map((i) => i.id) }),
       openChronology: () => setChronology(true),
       errand,
       setErrand,
@@ -40,7 +41,9 @@ export function RentCard() {
   )
 
   const frontier = rentStageForStatus(rent.status)
-  const live = printing ? (rent.invoices.find((i) => i.id === printing.id) ?? printing) : null
+  // Діалог читає рахунки з живого стору: номер, що прийшов з 1С, видно одразу.
+  const live = printing ? (rent.invoices.find((i) => i.id === printing.id) ?? null) : null
+  const liveSet = printing ? (printing.set.map((id) => rent.invoices.find((i) => i.id === id)).filter(Boolean) as Invoice[]) : []
   const Other = ui.Tabs[tab]
 
   return (
@@ -54,12 +57,17 @@ export function RentCard() {
           <div data-testid="card-scroll" className="min-h-0 flex-1 overflow-y-auto">
             <div className="px-4 pb-6 pt-3">
               <div className="mx-auto flex max-w-page flex-col gap-3">
+                {party === 'fl' && (
+                  <p className="rounded-lg border border-dashed border-border-strong px-3 py-2 text-label text-muted-fg" data-testid="fl-note">
+                    Фізособа показана чинним флоу проду. Варіанти прототипу стосуються тільки юрособи.
+                  </p>
+                )}
                 {tab === 'Оренда' ? (
                   <>
                     <div className="rounded-lg border border-border bg-card px-3 py-2.5">
                       <RentStageStepper current={stage} maxStage={frontier} onStageSelect={setStage} allowAllStages />
                     </div>
-                    <div className="rent-grid">
+                    <div className={ui.wideRail ? 'rent-grid rent-grid--wide' : 'rent-grid'}>
                       <div className="min-w-0" data-testid="step-column">
                         <ui.RentTab stage={stage} />
                       </div>
@@ -80,7 +88,13 @@ export function RentCard() {
           </div>
         </div>
         <Chronology open={chronology} onClose={() => setChronology(false)} />
-        <PrintDialog rent={rent} invoice={live} onClose={() => setPrinting(null)} />
+        <PrintDialog
+          rent={rent}
+          invoice={live}
+          set={liveSet}
+          onPick={(inv) => setPrinting((p) => (p ? { ...p, id: inv.id } : p))}
+          onClose={() => setPrinting(null)}
+        />
       </TooltipProvider>
     </CardContext.Provider>
   )

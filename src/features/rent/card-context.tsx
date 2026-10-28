@@ -8,7 +8,11 @@ import type { Invoice } from '@/mock/types'
 export interface CardActions {
   tab: string
   setTab: (tab: string) => void
-  openPrint: (invoice: Invoice) => void
+  /**
+   * Перегляд і друк рахунку. `set` — кілька рахунків, які відкрились разом
+   * (оренда і застава на старті): у діалозі між ними перемикаються.
+   */
+  openPrint: (invoice: Invoice, set?: Invoice[]) => void
   openChronology: () => void
   /** Доручення з рейлу: яку форму розкрити на кроці. `null` — немає. */
   errand: 'charge' | 'discount' | null

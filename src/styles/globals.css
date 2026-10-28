@@ -1264,6 +1264,19 @@ table:has(> colgroup[data-fixed]) {
     gap: 1.25rem;
   }
 }
+/* Варіант B тримає рахунки в рейлі: 20rem не вміщує бланк рахунку з
+   повною назвою послуги, тож рейл ширшає до 24rem. На 1366 крок лишається
+   ~930px — таблицям кроку цього досить. */
+@media (min-width: 1024px) {
+  .rent-grid--wide {
+    grid-template-columns: minmax(0, 1fr) 24rem;
+  }
+}
+@media (min-width: 1600px) {
+  .rent-grid--wide {
+    grid-template-columns: minmax(0, 1fr) 26rem;
+  }
+}
 
 @media print {
   body * {

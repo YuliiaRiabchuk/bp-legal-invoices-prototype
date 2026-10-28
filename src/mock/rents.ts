@@ -3,6 +3,7 @@ import { seedRows } from '@/domain/prod'
 import { MANAGER } from './orgs'
 import type {
   BankPayment,
+  Party,
   Charge,
   Counterparty,
   Invoice,
@@ -37,6 +38,9 @@ export type SceneId =
   | 'docs'
   | 'closed'
   | 'cash'
+  // Крайні стани (§6 брифу, shape §6): не сцени, а кадри для перевірки.
+  | 'edge-zero'
+  | 'edge-ten'
 
 const CLIENT: Counterparty = {
   name: 'ТОВ «Будмонтаж-Приклад»',
@@ -83,6 +87,15 @@ const SCAFF_BIG: Position = {
   service: 'Послуги оренди риштування рамного, комплект 50 м²',
   pricePerDay: 2000,
   deposit: 25000,
+}
+
+const LIFT: Position = {
+  id: 'p-lift',
+  name: 'Підйомник ножичний електричний самохідний 12 м, 320 кг',
+  service: 'Послуги оренди підйомника ножичного електричного самохідного з робочою висотою 12 м і вантажопідйомністю 320 кг',
+  qty: 1,
+  pricePerDay: 2400,
+  deposit: 40000,
 }
 
 function base(over: Partial<Rent> & { positions: Position[]; today: string; issueAt: string; returnAt: string; status: RentStatus }): Rent {
@@ -177,17 +190,43 @@ function lineOf(rent: Rent, c: Charge, seed: string): InvoiceLine {
 
 /** Оренда з оплаченими стартовими рахунками: оренда і застава. */
 function paidStart(rent: Rent, rentNo: string, depNo: string, days: number) {
-  const r = rentInv(rent, rentNo, rent.issueAt, rent.returnAt, days)
+  // Період — рівно ті доби, за які рахунок: повернення могли вже зсунути.
+  const r = rentInv(rent, rentNo, rent.issueAt, addIsoDays(rent.issueAt, days - 1), days)
   const d = depInv(rent, depNo, rent.issueAt)
   rent.invoices.push(r, d)
   rent.payments.push(pay(`2${rentNo.slice(-2)}`, rent.issueAt, gross(rent, r), r), pay(`2${depNo.slice(-2)}`, rent.issueAt, gross(rent, d), d))
   return { r, d }
 }
 
-export function buildRent(id: SceneId, variant: string): Rent {
-  const rent = buildScene(id, variant)
+/**
+ * Фізособа показується чинним флоу (порт проду), у скоупі тільки юрособа:
+ * той самий стан сцени, контрагент — людина, спосіб за замовчуванням —
+ * готівка в касі складу.
+ */
+const PERSON: Counterparty = {
+  name: 'Прикладенко Іван Петрович',
+  edrpou: '0000000020',
+  iban: '—',
+  address: 'м. Київ, вул. Прикладна, 2',
+  director: null,
+  phone: '+380 00 000 00 01',
+  email: 'person@example.com',
+  activeRents: 1,
+}
+
+export function buildRent(id: SceneId, variant: string, party: Party = 'ul'): Rent {
+  const prod = variant === '0' || party === 'fl'
+  const rent = buildScene(id, prod ? '0' : variant)
+  if (party === 'fl') {
+    rent.party = 'fl'
+    rent.counterparty = PERSON
+  }
   // Варіант 0 — прод: рахунок живе в рядку способу оплати.
-  if (variant === '0') rent.methodRows = seedRows(rent)
+  if (prod) {
+    rent.methodRows = seedRows(rent).map((r) =>
+      party === 'fl' ? { ...r, method: 'cash' as const, cashbox: 'Каса Київ-Північ' } : r,
+    )
+  }
   return rent
 }
 
@@ -206,8 +245,8 @@ function buildScene(id: SceneId, variant: string): Rent {
       if (auto) {
         // D1, пропозиція: два рахунки створено на вході в «Оплату», номер ще в дорозі.
         rent.invoices.push(
-          inv(rent, { kind: 'rent', number: null, date: rent.today, period: { from: rent.issueAt, to: rent.returnAt }, lines: rentLines(rent, 10, 'n1') }),
-          inv(rent, { kind: 'deposit', number: null, date: rent.today, lines: depositLines(rent, 'n2') }),
+          inv(rent, { kind: 'rent', number: null, date: rent.today, period: { from: rent.issueAt, to: rent.returnAt }, lines: rentLines(rent, 10, 'n1'), auto: true }),
+          inv(rent, { kind: 'deposit', number: null, date: rent.today, lines: depositLines(rent, 'n2'), auto: true }),
         )
       }
       return rent
@@ -384,6 +423,68 @@ function buildScene(id: SceneId, variant: string): Rent {
       rent.invoices.push(d, r)
       rent.payments.push(pay('201', '2026-10-01', gross(rent, d), d), pay('202', '2026-10-01', gross(rent, r), r))
       rent.docs.push({ id: 'avr-12', kind: 'avr', number: 'АВР-12', date: '2026-10-15', invoiceId: r.id, amount: gross(rent, r) })
+      return rent
+    }
+
+    case 'edge-zero': {
+      // Нуль рахунків: оренда ще в оформленні; два перші рахунки народяться
+      // самі на переході до оплати (D1, пропозиція).
+      return base({
+        status: 'DRAFT',
+        positions: [VIBRO, GEN],
+        today: '2026-10-28',
+        issueAt: '2026-10-28',
+        returnAt: '2026-11-06',
+      })
+    }
+
+    case 'edge-ten': {
+      // Десять рахунків, довга назва ТОВ і послуги, переплата, скасований,
+      // недоплата, невиставлене нарахування — усе в одній оренді.
+      const rent = base({
+        status: 'ACTIVE',
+        positions: [SCAFF, LIFT],
+        today: '2026-10-30',
+        issueAt: '2026-09-01',
+        returnAt: '2026-11-15',
+        counterparty: { ...CLIENT, name: 'ТОВ «Будівельно-монтажна компанія Приклад-Інжиніринг Південь-Схід»' },
+      })
+      const d = depInv(rent, '1032', '2026-09-01')
+      rent.invoices.push(d)
+      rent.payments.push(pay('132', '2026-09-01', gross(rent, d), d))
+      const periods: [string, string, string, number][] = [
+        ['1031', '2026-09-01', '2026-09-15', 15],
+        ['1058', '2026-09-16', '2026-09-30', 15],
+        ['1084', '2026-10-01', '2026-10-15', 15],
+        ['1120', '2026-10-16', '2026-10-31', 16],
+      ]
+      for (const [no, from, to, days] of periods) {
+        const r = { ...rentInv(rent, no, from, to, days, 'period'), date: addIsoDays(from, -1) }
+        rent.invoices.push(r)
+        rent.payments.push(pay(`1${no.slice(-2)}`, from, gross(rent, r), r))
+      }
+      const delivery = charge(rent, { article: 'Доставка', service: 'Послуги доставки обладнання', net: 2500, createdAt: '01.09, 09:30' })
+      const fine = charge(rent, { article: 'Штрафні санкції', service: 'Штраф за забруднення обладнання', net: 800, vatable: false, createdAt: '12.10, 15:00' })
+      const repair = charge(rent, { article: 'Додаткові витрати', service: 'Послуги з ремонту пошкодженої рами риштування рамного, комплект 30 м², з заміною діагональних в’язей', net: 3400, createdAt: '29.10, 11:20' })
+      const cleaning = charge(rent, { article: 'Чистка обладнання', service: 'Послуги чистки обладнання', net: 600 })
+      rent.charges.push(delivery, fine, repair, cleaning)
+      const iDel = inv(rent, { kind: 'topup', number: '1036', date: '2026-09-01', lines: [lineOf(rent, delivery, '1036')] })
+      const iFine = inv(rent, { kind: 'topup', number: '1101', date: '2026-10-12', lines: [lineOf(rent, fine, '1101')] })
+      iFine.cancelled = { by: MANAGER.name, at: '12.10, 15:40', comment: 'штраф зняли, клієнт оплатив чистку на місці' }
+      const sale: Invoice = inv(rent, {
+        kind: 'extra',
+        number: '1110',
+        date: '2026-10-14',
+        lines: [{ id: 'e-s1', service: 'Диск алмазний відрізний 230 мм', qty: 4, days: null, priceNet: 450, vatRate: 20, sale: true }],
+      })
+      const iRepair = inv(rent, { kind: 'topup', number: '1131', date: '2026-10-29', lines: [lineOf(rent, repair, '1131')] })
+      const next = { ...rentInv(rent, '1130', '2026-11-01', '2026-11-15', 15, 'period'), date: '2026-10-29' }
+      rent.invoices.push(iDel, iFine, sale, iRepair, next)
+      rent.payments.push(
+        pay('104', '2026-09-02', gross(rent, iDel), iDel),
+        pay('241', '2026-10-15', gross(rent, sale) + 300, sale),
+        pay('322', '2026-10-30', 20000, next),
+      )
       return rent
     }
 
