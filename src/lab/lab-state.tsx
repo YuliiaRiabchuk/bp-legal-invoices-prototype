@@ -1,0 +1,166 @@
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from 'react'
+import { SCENES, SCENE_BY_ID } from './scenes'
+import { VARIANTS, type Role } from './variants'
+import { RENT_STAGES } from '@/features/rent/stages'
+import type { Party, StageKey } from '@/mock/types'
+
+/**
+ * Стан перегляду: варіант кроку, варіант сайдбару, сцена, контрагент, роль.
+ *
+ * Живе НАД компоновкою, тому перемикання показу нічого не скидає в даних.
+ * Дзеркалиться в URL і localStorage; URL важливіший, бо посилання, кинуте в
+ * чат, має відкрити рівно той кадр, який бачив відправник.
+ */
+interface ViewState {
+  sceneId: string
+  party: Party
+  stage: StageKey
+  step: string
+  role: Role
+}
+
+interface LabState extends ViewState {
+  /**
+   * Ключ стану даних. Сцена, контрагент і варіант кроку перезбирають оренду
+   * з нуля: варіанти порівнюються з однієї точки. Сайдбар — тільки показ,
+   * його перемикання дані не скидає.
+   */
+  resetKey: string
+  resetScene: () => void
+  setScene: (sceneId: string) => void
+  setParty: (party: Party) => void
+  setStage: (stage: StageKey) => void
+  setStep: (code: string) => void
+  setRole: (role: Role) => void
+  hidden: boolean
+  setHidden: (v: boolean) => void
+}
+
+const LabContext = createContext<LabState | null>(null)
+
+const STORAGE_KEY = 'bp-legal.lab'
+
+const isStep = (v: string | null): v is string => !!v && VARIANTS.some((x) => x.code === v)
+
+/** URL — чужий ввід: невідомі значення мовчки відкидаються, а не ламають кадр. */
+function readUrl(): Partial<ViewState> & { hidden?: boolean } {
+  if (typeof window === 'undefined') return {}
+  const q = new URLSearchParams(window.location.search)
+  const out: Partial<ViewState> & { hidden?: boolean } = {}
+  const scene = q.get('scene')
+  if (scene && SCENE_BY_ID.has(scene)) out.sceneId = scene
+  const party = q.get('party')
+  if (party === 'fl' || party === 'ul') out.party = party
+  const stage = q.get('stage')
+  if (stage && RENT_STAGES.some((s) => s.key === stage)) out.stage = stage as StageKey
+  const step = q.get('v')
+  if (isStep(step)) out.step = step
+  const role = q.get('role')
+  if (role === 'manager' || role === 'head') out.role = role
+  if (q.get('lab') === 'off') out.hidden = true
+  return out
+}
+
+function readStorage(): Partial<ViewState> {
+  if (typeof window === 'undefined') return {}
+  try {
+    const raw = window.localStorage.getItem(STORAGE_KEY)
+    return raw ? JSON.parse(raw) : {}
+  } catch {
+    return {}
+  }
+}
+
+export function LabProvider({ children }: { children: ReactNode }) {
+  const url = readUrl()
+  const stored = readStorage()
+  const seedScene = SCENE_BY_ID.get(url.sceneId ?? stored.sceneId ?? '') ?? SCENES[0]
+  /**
+   * Сцена в URL перебиває збережене: посилання `?scene=split` має відкритись
+   * саме на поділі, а не на тому контрагенті, де людина була минулого разу.
+   * Явні `party` і `stage` в URL мають пріоритет над сценою.
+   */
+  const sceneFromUrl = url.sceneId != null
+  const [view, setView] = useState<ViewState>({
+    sceneId: seedScene.id,
+    party: url.party ?? (sceneFromUrl ? seedScene.party : stored.party) ?? seedScene.party,
+    stage: url.stage ?? (sceneFromUrl ? seedScene.stage : stored.stage) ?? seedScene.stage,
+    step: url.step ?? (isStep(stored.step ?? null) ? stored.step! : '0'),
+    role: url.role ?? stored.role ?? 'manager',
+  })
+  const [hidden, setHidden] = useState(Boolean(url.hidden))
+  const [nonce, setNonce] = useState(0)
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const q = new URLSearchParams(window.location.search)
+    q.set('v', view.step)
+    q.delete('rail')
+    q.set('scene', view.sceneId)
+    q.set('party', view.party)
+    q.set('stage', view.stage)
+    q.set('role', view.role)
+    if (hidden) q.set('lab', 'off')
+    else q.delete('lab')
+    window.history.replaceState(null, '', `${window.location.pathname}?${q}`)
+    try {
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(view))
+    } catch {
+      /* сховище недоступне — посилання все одно працює */
+    }
+  }, [view, hidden])
+
+  // Ctrl+. ховає віджет цілком: у кадри для бізнесу він не потрапляє.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.ctrlKey && e.key === '.') {
+        e.preventDefault()
+        setHidden((v) => !v)
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
+
+  const setScene = useCallback((sceneId: string) => {
+    const s = SCENE_BY_ID.get(sceneId)
+    if (!s) return
+    setView((v) => ({ ...v, sceneId, party: s.party, stage: s.stage }))
+  }, [])
+
+  const setStage = useCallback((stage: StageKey) => {
+    setView((v) => ({ ...v, stage }))
+  }, [])
+
+  const value = useMemo<LabState>(
+    () => ({
+      ...view,
+      resetKey: `${view.sceneId}|${view.party}|${view.step}|${nonce}`,
+      resetScene: () => setNonce((n) => n + 1),
+      setScene,
+      setParty: (party) => setView((v) => ({ ...v, party })),
+      setStage,
+      setStep: (step) => setView((v) => ({ ...v, step })),
+      setRole: (role) => setView((v) => ({ ...v, role })),
+      hidden,
+      setHidden,
+    }),
+    [view, nonce, setScene, setStage, hidden],
+  )
+
+  return <LabContext.Provider value={value}>{children}</LabContext.Provider>
+}
+
+export function useLab(): LabState {
+  const ctx = useContext(LabContext)
+  if (!ctx) throw new Error('useLab must be used inside LabProvider')
+  return ctx
+}
