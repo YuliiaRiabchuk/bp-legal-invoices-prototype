@@ -29,12 +29,15 @@ export function RentHeader({
   tab,
   onTab,
   onOpenTimeline,
+  action,
 }: {
   rent: Rent
   tabs: string[]
   tab: string
   onTab: (tab: string) => void
   onOpenTimeline: () => void
+  /** Дія варіанта в шапці оренди (продовження (а) в A і D). */
+  action?: React.ReactNode
 }) {
   return (
     <header className="bg-card px-4">
@@ -67,6 +70,7 @@ export function RentHeader({
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-1">
+          {action}
           <Button variant="ghost" size="sm" onClick={onOpenTimeline} data-testid="open-timeline">
             <History className="size-3.5" aria-hidden />
             Хронологія

@@ -17,6 +17,18 @@ export interface CardActions {
   /** Доручення з рейлу: яку форму розкрити на кроці. `null` — немає. */
   errand: 'charge' | 'discount' | null
   setErrand: (e: 'charge' | 'discount' | null) => void
+  /**
+   * Нові варіанти: «виписати рахунок» з іншого місця картки (нарахування в
+   * кроці → бланк у реєстрі чи на стрічці). Місце рахунку забирає доручення
+   * і скидає його.
+   */
+  invoiceErrand: InvoiceErrand | null
+  setInvoiceErrand: (e: InvoiceErrand | null) => void
+}
+
+export interface InvoiceErrand {
+  via: 'button' | 'period' | 'charge'
+  chargeId?: string
 }
 
 export const CardContext = createContext<CardActions | null>(null)

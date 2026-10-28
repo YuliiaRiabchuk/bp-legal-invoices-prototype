@@ -1,21 +1,17 @@
-import { useEffect, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
 import { CalendarClock, ChevronDown, Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { coveredUntil, dailyGross, daysIncl, fmtDate, fmtDay, invoiceState, isVatFree } from '@/domain/money'
-import { byFreshness, chargeGross, lastRentInvoice, nextPeriod, openCharges } from '@/domain/invoicing'
-import { useCard } from '@/features/rent/card-context'
+import { byFreshness, lastRentInvoice, nextPeriod, openCharges } from '@/domain/invoicing'
 import { formatMoney } from '@/lib/money'
-import { days as daysWord, plural } from '@/lib/plural'
-
-/** «на 1 добу, на 2 доби, на 18 діб» — знахідний відмінок. */
-const forDays = (n: number) => `${n} ${plural(n, 'добу', 'доби', 'діб')}`
+import { days as daysWord, forDays, plural } from '@/lib/plural'
 import { cn } from '@/lib/utils'
-import { ORG_BY_ID } from '@/mock/orgs'
-import type { Charge, Invoice, Rent } from '@/mock/types'
+import type { Invoice, Rent } from '@/mock/types'
 import { useStore } from '@/state/store'
 import { Proposal } from '../shared/Proposal'
-import { ChargeFormB } from './ChargeFormB'
-import { ComposerB, type ComposerSeed } from './ComposerB'
+import { ChargeForm } from '../shared/ChargeForm'
+import { InvoiceComposer, type ComposerSeed } from '../shared/InvoiceComposer'
+import { OpenCharges } from '../shared/OpenCharges'
 import { InvoiceCardB } from './InvoiceCardB'
 
 /**
@@ -37,7 +33,6 @@ export function RailB() {
     nonce.current++
     setPanel('invoiceId' in p ? { mode: 'edit', invoiceId: p.invoiceId, nonce: nonce.current } : { mode: 'new', ...p, nonce: nonce.current })
   }
-  useAutoPrint(rent)
 
   const invoices = [...rent.invoices].sort(byFreshness)
   const live = invoices.filter((i) => !i.cancelled)
@@ -76,14 +71,14 @@ export function RailB() {
         </header>
 
         {panel?.mode === 'charge' && (
-          <ChargeFormB
+          <ChargeForm
             onClose={(thenInvoice) => {
               if (thenInvoice) open({ via: 'charge' })
               else setPanel(null)
             }}
           />
         )}
-        {panel && panel.mode !== 'charge' && <ComposerB key={panel.nonce} seed={panel} onClose={() => setPanel(null)} />}
+        {panel && panel.mode !== 'charge' && <InvoiceComposer key={panel.nonce} seed={panel} onClose={() => setPanel(null)} />}
 
         {!panel && np.due && prevRent && (
           <div className="flex items-center gap-2.5 border-t border-border bg-accent-soft/60 px-3 py-2.5" data-testid="next-period-hint">
@@ -95,13 +90,15 @@ export function RailB() {
                 <Proposal note="Підказка з’являється, коли до кінця виставленого періоду менше 3 діб. Межа — за ритмом 15/30 числа; змінюється однією константою." />
               </p>
             </div>
-            <Button size="sm" variant="secondary" onClick={() => open({ via: 'hint' })} data-testid="next-period" data-main-action="next-period">
+            <Button size="sm" variant="secondary" onClick={() => open({ via: 'period' })} data-testid="next-period" data-main-action="next-period">
               Виставити
             </Button>
           </div>
         )}
 
-        {!panel && charges.length > 0 && <OpenCharges rent={rent} charges={charges} onInvoice={(id) => open({ via: 'charge', chargeId: id })} />}
+        {!panel && charges.length > 0 && (
+          <OpenCharges rent={rent} charges={charges} onInvoice={(id) => open({ via: 'charge', chargeId: id })} className="border-t border-border px-3 py-2" />
+        )}
 
         {invoices.length === 0 ? (
           <div className="border-t border-border px-3 py-3" data-testid="invoices-empty">
@@ -159,77 +156,6 @@ function Stack({ rent, invoices, onEdit }: { rent: Rent; invoices: Invoice[]; on
           {all ? 'Згорнути старіші' : `Ще ${older.length} ${plural(older.length, 'оплачений', 'оплачені', 'оплачених')} раніше`}
         </button>
       )}
-    </div>
-  )
-}
-
-/**
- * Нарахування, яких немає в жодному рахунку. Звідси два шляхи: у рахунок
- * (бланк з цим рядком) або готівкою — ПКО на ФОП, рахунки не змінюються
- * (C1, F5).
- */
-function OpenCharges({ rent, charges, onInvoice }: { rent: Rent; charges: Charge[]; onInvoice: (id: string) => void }) {
-  const { dispatch } = useStore()
-  const [cashFor, setCashFor] = useState<string | null>(null)
-  const fop = ORG_BY_ID[rent.fopId]
-  return (
-    <div className="border-t border-border px-3 py-2" data-testid="open-charges">
-      <p className="flex items-center gap-1.5 text-label font-medium text-muted-fg">
-        Не виставлено
-        <Proposal note="Нарахування, яких ще немає в жодному рахунку: звідси — у рахунок або готівкою." />
-      </p>
-      <ul className="mt-1 flex flex-col gap-1.5">
-        {charges.map((c) => {
-          // Готівкою від ЮЛ — без ПДВ, на ФОП (§3).
-          const cash = c.kind === 'charge' ? c.net : 0
-          return (
-            <li key={c.id} data-testid="open-charge">
-              <div className="flex items-baseline gap-2">
-                <span className="min-w-0 flex-1 text-body text-fg">{c.article}</span>
-                <span className="shrink-0 text-body tabular-nums text-fg">{formatMoney(chargeGross(rent, c))}</span>
-              </div>
-              {cashFor === c.id ? (
-                <div className="mt-1.5 rounded-md border border-border-strong bg-card p-2" data-testid="cash-confirm">
-                  <p className="flex flex-wrap items-center gap-1.5 text-label text-fg">
-                    Прийняти готівкою <span className="font-medium tabular-nums">{formatMoney(cash)}</span> без ПДВ
-                    <Proposal note="Готівка закриває нарахування прямо з «Не виставлено»: ПКО на ФОП, рахунки ЮЛ не змінюються." />
-                  </p>
-                  <p className="text-label text-muted-fg">ПКО на {fop.name} — рахунки ЮЛ не зміняться.</p>
-                  <div className="mt-2 flex justify-end gap-2">
-                    <Button size="sm" variant="ghost" onClick={() => setCashFor(null)}>
-                      Ні
-                    </Button>
-                    <Button
-                      size="sm"
-                      data-testid="cash-submit"
-                      onClick={() => {
-                        dispatch({ type: 'CASH_ACCEPT', amount: cash, purpose: c.service, chargeId: c.id })
-                        setCashFor(null)
-                      }}
-                    >
-                      Прийняти, виписати ПКО
-                    </Button>
-                  </div>
-                </div>
-              ) : (
-                <div className="flex items-center gap-2">
-                  <span className="min-w-0 flex-1 truncate text-label text-muted-fg">
-                    {c.vatable && ORG_BY_ID[rent.orgId].vatPayer ? 'з ПДВ' : 'без ПДВ'} — {c.createdAt}
-                  </span>
-                  {c.kind === 'charge' && (
-                    <button type="button" onClick={() => setCashFor(c.id)} className="text-label font-medium text-accent-fg hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fg" data-testid="open-charge-cash">
-                      Готівкою
-                    </button>
-                  )}
-                  <button type="button" onClick={() => onInvoice(c.id)} className="text-label font-medium text-accent-fg hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fg" data-testid="open-charge-invoice">
-                    У рахунок
-                  </button>
-                </div>
-              )}
-            </li>
-          )
-        })}
-      </ul>
     </div>
   )
 }
@@ -310,22 +236,4 @@ function CoverageB({ rent }: { rent: Rent }) {
       )}
     </section>
   )
-}
-
-/**
- * Перші два рахунки (D1, пропозиція) відкривають друкарські форми, щойно 1С
- * присвоїть номери: менеджер одразу друкує й зберігає PDF для Viber.
- */
-function useAutoPrint(rent: Rent) {
-  const { openPrint } = useCard()
-  const tracked = useRef(new Set<string>())
-  useEffect(() => {
-    for (const i of rent.invoices) if (i.auto && i.numberState === 'pending') tracked.current.add(i.id)
-    if (tracked.current.size === 0) return
-    const list = [...tracked.current].map((id) => rent.invoices.find((i) => i.id === id)).filter(Boolean) as Invoice[]
-    if (list.some((i) => i.numberState === 'pending')) return
-    tracked.current = new Set()
-    const ready = list.filter((i) => i.numberState === 'ok').sort((a, b) => Number(a.kind === 'deposit') - Number(b.kind === 'deposit'))
-    if (ready.length) openPrint(ready[0], ready)
-  }, [rent.invoices, openPrint])
 }

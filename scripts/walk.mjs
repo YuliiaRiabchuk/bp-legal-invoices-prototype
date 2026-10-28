@@ -76,7 +76,9 @@ async function measure() {
     for (const el of document.querySelectorAll('[data-main-action]')) {
       const r = el.getBoundingClientRect()
       if (r.width === 0) continue
-      mains[el.getAttribute('data-main-action')] = Math.round(r.top + st)
+      // Координата вмісту — тільки для того, що прокручується. Дія в шапці
+      // оренди (поза областю прокрутки) стоїть на місці, хоч би як крутили.
+      mains[el.getAttribute('data-main-action')] = Math.round(r.top + (box && box.contains(el) ? st : 0))
     }
     const due = [...document.querySelectorAll('[data-amount-due]')].filter(vis).map((e) => e.getAttribute('data-amount-due'))
     const links = [...document.querySelectorAll('[data-pay-invoice]')].filter(vis).map((e) => e.getAttribute('data-pay-invoice'))
@@ -319,6 +321,175 @@ const DRIVERS = {
       return true
     },
   },
+  /**
+   * Варіант A — реєстр рахунків. Рахунки у вкладці «Рахунки»; продовження
+   * (а) — кнопка в шапці оренди, доступна з будь-якої вкладки.
+   */
+  A: {
+    async start() {
+      return true
+    },
+    async delivery(run) {
+      await run.click('[data-testid="tab-Рахунки"]')
+      await run.click('[data-testid="registry-new"]')
+      await run.select('[data-testid="composer-free-article"]', 'delivery')
+      await run.type('[data-testid="composer-free-price"]', 1000)
+      await run.click('[data-testid="composer-submit"]')
+      return true
+    },
+    async period(run) {
+      await run.click('[data-testid="tab-Рахунки"]')
+      await run.click('[data-testid="registry-row"][data-number="1120"] [data-testid="invoice-menu"]')
+      await run.click('[data-testid="registry-next-period"]')
+      await run.click('[data-testid="composer-submit"]')
+      return true
+    },
+    async extend(run) {
+      await run.click('[data-testid="extend-open"]')
+      await run.date('[data-testid="extend-date"]', '2026-11-05')
+      await run.click('[data-testid="extend-submit"]')
+      return true
+    },
+    /** Продовження (а): «вистачить до» не його вісь — сцена 4б не застосовна. */
+    async coveredUntil() {
+      return null
+    },
+    async cancel(run) {
+      await run.click('[data-testid="tab-Рахунки"]')
+      await run.click('[data-testid="registry-row"][data-number="1140"] [data-testid="invoice-menu"]')
+      await run.click('[data-testid="invoice-cancel"]')
+      await run.click('[data-testid="cancel-submit"]')
+      return true
+    },
+    async noNumber() {
+      return true
+    },
+    /** Сцена 6: реєстр — окрема вкладка, один клік. */
+    async answerFive(run) {
+      await run.click('[data-testid="tab-Рахунки"]')
+      return true
+    },
+    async showDocs(run) {
+      await run.click('[data-testid="tab-Рахунки"]')
+    },
+    async closedPrint(run) {
+      await run.click('[data-testid="tab-Рахунки"]')
+      await run.click('[data-testid="registry-row"][data-number="1102"] [data-testid="invoice-print"]')
+      return true
+    },
+    async cash(run) {
+      await run.click('[data-testid="open-charge-cash"]')
+      await run.click('[data-testid="cash-submit"]')
+      return true
+    },
+  },
+
+  /** Варіант C — стрічка періодів над кроком; продовження (б). */
+  C: {
+    async start() {
+      return true
+    },
+    async delivery(run) {
+      await run.click('[data-testid="strip-new"]')
+      await run.select('[data-testid="composer-free-article"]', 'delivery')
+      await run.type('[data-testid="composer-free-price"]', 1000)
+      await run.click('[data-testid="composer-submit"]')
+      return true
+    },
+    /** Сцена 3: прогалина «не виставлено» → межа 15/30 уже стоїть. */
+    async period(run) {
+      await run.click('[data-testid="strip-gap-invoice"]')
+      await run.click('[data-testid="composer-submit"]')
+      return true
+    },
+    async extend(run) {
+      await run.click('[data-testid="strip-gap-invoice"]')
+      await run.date('[data-testid="composer-period-to"]', '2026-11-05')
+      await run.click('[data-testid="composer-submit"]')
+      return true
+    },
+    async coveredUntil() {
+      return !!(await page.$('[data-testid="covered-until"]'))
+    },
+    async cancel(run) {
+      await run.click('[data-testid="strip-point"][data-number="1140"]')
+      await run.click('[data-testid="strip-selected"] [data-testid="invoice-menu"]')
+      await run.click('[data-testid="invoice-cancel"]')
+      await run.click('[data-testid="cancel-submit"]')
+      return true
+    },
+    async noNumber() {
+      return true
+    },
+    /** Сцена 6: мітки на стрічці несуть номери платіжок. */
+    async answerFive() {
+      return true
+    },
+    /** Сцена 9: АВР — у деталях рахунку оренди, клік по відрізку. */
+    async showDocs(run) {
+      await run.click('[data-testid="strip-segment"][data-number="1101"]')
+    },
+    async closedPrint(run) {
+      await run.click('[data-testid="strip"] [data-number="1102"]')
+      await run.click('[data-testid="strip-selected"] [data-testid="invoice-print"]')
+      return true
+    },
+    async cash(run) {
+      await run.click('[data-testid="open-charge-cash"]')
+      await run.click('[data-testid="cash-submit"]')
+      return true
+    },
+  },
+
+  /** Варіант D — книга «Рахунки і оплати» на кроці; продовження (а). */
+  D: {
+    async start() {
+      return true
+    },
+    async delivery(run) {
+      await run.click('[data-testid="book-new"]')
+      await run.select('[data-testid="composer-free-article"]', 'delivery')
+      await run.type('[data-testid="composer-free-price"]', 1000)
+      await run.click('[data-testid="composer-submit"]')
+      return true
+    },
+    async period(run) {
+      await run.click('[data-testid="book-next-period"]')
+      await run.click('[data-testid="composer-submit"]')
+      return true
+    },
+    async extend(run) {
+      await run.click('[data-testid="extend-open"]')
+      await run.date('[data-testid="extend-date"]', '2026-11-05')
+      await run.click('[data-testid="extend-submit"]')
+      return true
+    },
+    /** Продовження (а): сцена 4б не застосовна. */
+    async coveredUntil() {
+      return null
+    },
+    async cancel(run) {
+      await run.click('[data-testid="book-entry"][data-number="1140"] [data-testid="invoice-menu"]')
+      await run.click('[data-testid="invoice-cancel"]')
+      await run.click('[data-testid="cancel-submit"]')
+      return true
+    },
+    async noNumber() {
+      return true
+    },
+    async answerFive() {
+      return true
+    },
+    async closedPrint(run) {
+      await run.click('[data-testid="book-entry"][data-number="1102"] [data-testid="invoice-print"]')
+      return true
+    },
+    async cash(run) {
+      await run.click('[data-testid="open-charge-cash"]')
+      await run.click('[data-testid="cash-submit"]')
+      return true
+    },
+  },
 }
 
 /* ── Сцени ─────────────────────────────────────────────────────────── */
@@ -373,7 +544,9 @@ for (const v of VARIANTS) {
 
   await scene(v, 'extend-paid', '4б Продовження: оплачено', async (run, d) => {
     const shown = await d.coveredUntil(run)
-    ok('показує «вистачить до»', shown, shown ? '' : 'варіант не показує')
+    // `null` — варіант з продовженням (а): «вистачить до» не його вісь (§4 брифу).
+    if (shown === null) console.log('  n/a  показує «вистачить до»  (продовження (а))')
+    else ok('показує «вистачить до»', shown, shown ? '' : 'варіант не показує')
     return { covered: shown }
   })
 
@@ -412,7 +585,9 @@ for (const v of VARIANTS) {
     ok('стан помилки названо', named, named ? '' : 'окремого стану немає')
   })
 
-  await scene(v, 'docs', '9 Документи під рахунком', async () => {
+  await scene(v, 'docs', '9 Документи під рахунком', async (run, d) => {
+    // Де АВР не на першому екрані, драйвер відкриває місце рахунку.
+    if (d.showDocs) await d.showDocs(run)
     const shown = await page.evaluate(() => /АВР/.test(document.body.innerText))
     ok('АВР видно під рахунком', shown, shown ? '' : 'АВР немає ніде')
   })

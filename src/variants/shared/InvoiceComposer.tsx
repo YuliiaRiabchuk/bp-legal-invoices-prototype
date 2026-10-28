@@ -10,14 +10,16 @@ import { days as daysWord } from '@/lib/plural'
 import { cn } from '@/lib/utils'
 import type { Charge, InvoiceLine } from '@/mock/types'
 import { useStore } from '@/state/store'
-import { Proposal } from '../shared/Proposal'
+import { Proposal } from './Proposal'
 
 /**
- * Бланк нового рахунку в рейлі. Одна форма на три входи:
+ * Бланк нового рахунку — спільний для варіантів A–D; різниться тільки місце,
+ * де він розгортається (рейл, реєстр, книга, стрічка). Одна форма на три входи:
  *  - «+ Рахунок» — відмічено все невиставлене; якщо виставляти нічого,
  *    одразу порожній рядок, як «+» у 1С;
- *  - підказка «наступний період» — відмічено оренду з датами «з … по …»;
- *  - «Виставити» на нарахуванні — відмічено тільки його.
+ *  - «наступний період» — відмічено оренду з датами «з … по …» на основі
+ *    попереднього рахунку;
+ *  - «У рахунок» на нарахуванні — відмічено тільки його.
  *
  * Менеджер сам обирає, що йде в рахунок (§3): галочка на кожному рядку.
  * Рахунок народжується без номера; номер присвоює 1С.
@@ -27,7 +29,7 @@ import { Proposal } from '../shared/Proposal'
  */
 
 export type ComposerSeed =
-  | { mode: 'new'; via: 'button' | 'hint' | 'charge'; chargeId?: string; nonce: number }
+  | { mode: 'new'; via: 'button' | 'period' | 'charge'; chargeId?: string; nonce: number }
   | { mode: 'edit'; invoiceId: string; nonce: number }
 
 interface FreeRow {
@@ -48,7 +50,16 @@ const num = (v: string) => {
 let freeSeq = 0
 const blankFree = (): FreeRow => ({ key: `f${++freeSeq}`, articleId: '', service: '', qty: '1', price: '', vatable: true, checked: true })
 
-export function ComposerB({ seed, onClose }: { seed: ComposerSeed; onClose: (created: boolean) => void }) {
+export function InvoiceComposer({
+  seed,
+  onClose,
+  className,
+}: {
+  seed: ComposerSeed
+  onClose: (created: boolean) => void
+  /** Обгортка: у рейлі — смуга на всю ширину, у реєстрі й книзі — вужчий бланк. */
+  className?: string
+}) {
   const { rent, dispatch } = useStore()
   const editing = seed.mode === 'edit' ? rent.invoices.find((i) => i.id === seed.invoiceId) : undefined
   const np = nextPeriod(rent)
@@ -57,7 +68,7 @@ export function ComposerB({ seed, onClose }: { seed: ComposerSeed; onClose: (cre
   // ── Оренда за період ──
   const editRent = editing?.period && editing.lines.some((l) => l.days != null) ? editing : undefined
   const periodFrom = editRent?.period?.from ?? np.from
-  const [rentOn, setRentOn] = useState(seed.mode === 'edit' ? !!editRent : seed.via === 'hint')
+  const [rentOn, setRentOn] = useState(seed.mode === 'edit' ? !!editRent : seed.via === 'period')
   const [periodTo, setPeriodTo] = useState(editRent?.period?.to ?? np.to)
   const days = Math.max(0, daysIncl(periodFrom, periodTo))
   const rentRows: InvoiceLine[] = useMemo(() => {
@@ -84,6 +95,12 @@ export function ComposerB({ seed, onClose }: { seed: ComposerSeed; onClose: (cre
     seed.mode === 'new' && seed.via === 'button' && charges.length === 0 && !np.due ? [blankFree()] : [],
   )
   const firstFreeRef = useRef<HTMLSelectElement>(null)
+  const formRef = useRef<HTMLFormElement>(null)
+  // Бланк, що розгорнувся нижче згину (книга, стрічка), підтягується в кадр
+  // цілком: «Сформувати» має бути видно без ручної прокрутки.
+  useEffect(() => {
+    formRef.current?.scrollIntoView({ block: 'nearest' })
+  }, [])
   useEffect(() => {
     // Тільки на відкритті бланка: порожній рядок чекає на вибір послуги.
     if (free.length === 1 && !free[0].articleId) firstFreeRef.current?.focus()
@@ -156,7 +173,8 @@ export function ComposerB({ seed, onClose }: { seed: ComposerSeed; onClose: (cre
 
   return (
     <form
-      className="border-b border-border bg-muted/50 px-3 pb-3 pt-2.5"
+      ref={formRef}
+      className={cn('border-b border-border bg-muted/50 px-3 pb-3 pt-2.5', className)}
       data-testid="composer"
       aria-label={editing ? `Редагування рахунку № ${editing.number ?? ''}` : 'Новий рахунок'}
       onSubmit={(e) => {

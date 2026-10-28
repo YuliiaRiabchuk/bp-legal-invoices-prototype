@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { ArrowRight, Banknote, Landmark } from 'lucide-react'
 import { fmtDay } from '@/domain/money'
 import { chargeGross, chargePlace, invoiceTitle } from '@/domain/invoicing'
@@ -5,6 +6,7 @@ import { formatMoney } from '@/lib/money'
 import { cn } from '@/lib/utils'
 import { ORG_BY_ID } from '@/mock/orgs'
 import type { Rent } from '@/mock/types'
+import { CashConfirm } from './OpenCharges'
 import { Proposal } from './Proposal'
 
 /**
@@ -94,7 +96,8 @@ export function PaymentsLedger({ rent, emptyHint }: { rent: Rent; emptyHint?: st
  * виставлене. Додаються вони однією точкою входу варіанта (рейл у B), тут
  * — лише реєстр.
  */
-export function ChargesLedger({ rent }: { rent: Rent }) {
+export function ChargesLedger({ rent, onInvoice }: { rent: Rent; onInvoice?: (chargeId: string) => void }) {
+  const [cashFor, setCashFor] = useState<string | null>(null)
   if (rent.charges.length === 0) {
     return (
       <p className="rounded-lg border border-dashed border-border-strong px-4 py-3 text-label text-muted-fg" data-testid="charges-empty">
@@ -131,10 +134,31 @@ export function ChargesLedger({ rent }: { rent: Rent }) {
                 )
               )}
               {place.kind === 'cash' && <>оплачено готівкою, {place.number ? `ПКО ${place.number}` : 'ПКО — № очікується'}</>}
-              {place.kind === 'open' && <span className="font-medium text-notice-fg">ще не виставлено</span>}
+              {place.kind === 'open' && (
+                <span className="flex flex-wrap items-center gap-x-3 gap-y-0.5">
+                  <span className="font-medium text-notice-fg">ще не виставлено</span>
+                  {onInvoice && (
+                    <>
+                      <button type="button" onClick={() => onInvoice(c.id)} className="font-medium text-accent-fg hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fg" data-testid="open-charge-invoice">
+                        У рахунок
+                      </button>
+                      {c.kind === 'charge' && (
+                        <button type="button" onClick={() => setCashFor(c.id)} className="font-medium text-accent-fg hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fg" data-testid="open-charge-cash">
+                          Готівкою
+                        </button>
+                      )}
+                    </>
+                  )}
+                </span>
+              )}
               {place.kind === 'cancelled' && <>скасовано, {c.cancelled?.by}</>}
             </p>
             <span className="text-right text-body tabular-nums text-fg">{formatMoney(chargeGross(rent, c))}</span>
+            {cashFor === c.id && (
+              <div className="col-span-3 mt-2 flex justify-end">
+                <CashConfirm rent={rent} charge={c} onDone={() => setCashFor(null)} className="w-full max-w-sm" />
+              </div>
+            )}
           </li>
         )
       })}

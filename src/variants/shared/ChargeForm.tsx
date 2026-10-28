@@ -7,17 +7,18 @@ import { SegmentedControl } from '@/components/ui/segmented-control'
 import { orgOf, vatFor } from '@/domain/money'
 import { ARTICLES, ARTICLE_BY_ID } from '@/domain/invoicing'
 import { formatMoney } from '@/lib/money'
+import { cn } from '@/lib/utils'
 import { useStore } from '@/state/store'
 
 /**
- * «+ Нарахування» у рейлі: нарахування оренди без рахунку. Воно стає в
+ * «+ Нарахування»: нарахування оренди без рахунку. Воно стає в
  * «Не виставлено», звідки його беруть у рахунок або закривають готівкою.
  * Штрафні санкції за замовчуванням без ПДВ, галочка міняє (§3).
  *
  * «Додати й виставити» — той самий рух, що й у проді «Додати й перейти до
  * оплати», тільки веде не на інший етап, а в бланк рахунку тут же.
  */
-export function ChargeFormB({ onClose }: { onClose: (thenInvoice: boolean) => void }) {
+export function ChargeForm({ onClose, className }: { onClose: (thenInvoice: boolean) => void; className?: string }) {
   const { rent, dispatch } = useStore()
   const [kind, setKind] = useState<'charge' | 'discount'>('charge')
   const [articleId, setArticleId] = useState('')
@@ -48,7 +49,7 @@ export function ChargeFormB({ onClose }: { onClose: (thenInvoice: boolean) => vo
 
   return (
     <form
-      className="border-b border-border bg-muted/50 px-3 pb-3 pt-2.5"
+      className={cn('border-b border-border bg-muted/50 px-3 pb-3 pt-2.5', className)}
       data-testid="charge-form"
       onSubmit={(e) => {
         e.preventDefault()
@@ -85,7 +86,7 @@ export function ChargeFormB({ onClose }: { onClose: (thenInvoice: boolean) => vo
           ref={ref}
           value={articleId}
           aria-label="Стаття"
-          data-testid="charge-b-article"
+          data-testid="charge-form-article"
           onChange={(e) => {
             setArticleId(e.target.value)
             const next = ARTICLE_BY_ID.get(e.target.value)
@@ -109,7 +110,7 @@ export function ChargeFormB({ onClose }: { onClose: (thenInvoice: boolean) => vo
           placeholder="0"
           onChange={(e) => setNet(e.target.value)}
           aria-label="Сума без ПДВ"
-          data-testid="charge-b-net"
+          data-testid="charge-form-net"
           className="h-8 w-28 text-right tabular-nums"
         />
         без ПДВ
@@ -122,10 +123,10 @@ export function ChargeFormB({ onClose }: { onClose: (thenInvoice: boolean) => vo
         <span className="ml-auto font-medium tabular-nums text-fg">{amount > 0 ? formatMoney(kind === 'discount' ? -gross : gross) : '—'}</span>
       </div>
       <div className="mt-3 flex items-center justify-end gap-2">
-        <Button type="submit" size="sm" variant="secondary" disabled={!valid} data-testid="charge-b-add">
+        <Button type="submit" size="sm" variant="secondary" disabled={!valid} data-testid="charge-form-add">
           Додати
         </Button>
-        <Button type="button" size="sm" disabled={!valid} onClick={() => add(true)} data-testid="charge-b-add-invoice">
+        <Button type="button" size="sm" disabled={!valid} onClick={() => add(true)} data-testid="charge-form-add-invoice">
           Додати й виставити
         </Button>
       </div>

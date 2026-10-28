@@ -9,6 +9,7 @@ import { rentStageForStatus } from './stages'
 import { useLab } from '@/lab/lab-state'
 import { useStore } from '@/state/store'
 import { VARIANT_UI } from '@/variants/registry'
+import { AutoPrint } from '@/variants/shared/use-auto-print'
 import type { Invoice } from '@/mock/types'
 
 /**
@@ -27,6 +28,7 @@ export function RentCard() {
   const [chronology, setChronology] = useState(false)
   const [printing, setPrinting] = useState<{ id: string; set: string[] } | null>(null)
   const [errand, setErrand] = useState<CardActions['errand']>(null)
+  const [invoiceErrand, setInvoiceErrand] = useState<CardActions['invoiceErrand']>(null)
 
   const actions = useMemo<CardActions>(
     () => ({
@@ -36,8 +38,10 @@ export function RentCard() {
       openChronology: () => setChronology(true),
       errand,
       setErrand,
+      invoiceErrand,
+      setInvoiceErrand,
     }),
-    [tab, errand],
+    [tab, errand, invoiceErrand],
   )
 
   const frontier = rentStageForStatus(rent.status)
@@ -51,7 +55,14 @@ export function RentCard() {
       <TooltipProvider delayDuration={150}>
         <div className="flex h-full flex-col overflow-hidden bg-bg">
           <div className="shrink-0 border-b border-border">
-            <RentHeader rent={rent} tabs={ui.tabs} tab={tab} onTab={actions.setTab} onOpenTimeline={() => setChronology(true)} />
+            <RentHeader
+              rent={rent}
+              tabs={ui.tabs}
+              tab={tab}
+              onTab={actions.setTab}
+              onOpenTimeline={() => setChronology(true)}
+              action={ui.HeaderAction ? <ui.HeaderAction /> : null}
+            />
           </div>
 
           <div data-testid="card-scroll" className="min-h-0 flex-1 overflow-y-auto">
@@ -67,6 +78,7 @@ export function RentCard() {
                     <div className="rounded-lg border border-border bg-card px-3 py-2.5">
                       <RentStageStepper current={stage} maxStage={frontier} onStageSelect={setStage} allowAllStages />
                     </div>
+                    {ui.Above && <ui.Above />}
                     <div className={ui.wideRail ? 'rent-grid rent-grid--wide' : 'rent-grid'}>
                       <div className="min-w-0" data-testid="step-column">
                         <ui.RentTab stage={stage} />
@@ -87,6 +99,8 @@ export function RentCard() {
             </div>
           </div>
         </div>
+        {/* Перші два рахунки відкривають друк, щойно прийде номер (D1) — на будь-якій вкладці. */}
+        {party === 'ul' && step !== '0' && <AutoPrint rent={rent} />}
         <Chronology open={chronology} onClose={() => setChronology(false)} />
         <PrintDialog
           rent={rent}
