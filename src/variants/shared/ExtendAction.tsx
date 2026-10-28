@@ -47,7 +47,7 @@ export function ExtendAction() {
       </PopoverTrigger>
       <PopoverContent
         align="end"
-        className="w-80 p-3"
+        className="w-[22rem] p-3"
         data-testid="extend-form"
         // Фокус — на дату, а не на першу позначку «пропозиція»: інакше її підказка закриває поле.
         onOpenAutoFocus={(e) => {
