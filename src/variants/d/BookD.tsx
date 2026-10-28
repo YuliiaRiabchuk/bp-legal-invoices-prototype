@@ -1,8 +1,8 @@
 import { Fragment, useEffect, useRef, useState } from 'react'
 import { ArrowRight, Banknote, Ban, Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { fmtDate, fmtDay, invoiceTotal, totals } from '@/domain/money'
-import { invoiceTitle, lastRentInvoice, nextPeriod, openCharges } from '@/domain/invoicing'
+import { fmtDate, fmtDay, invoiceState, invoiceTotal } from '@/domain/money'
+import { invoiceBlocked, invoiceTitle, lastRentInvoice, nextPeriod, openCharges, totalsSplit } from '@/domain/invoicing'
 import { useCard } from '@/features/rent/card-context'
 import { formatMoney } from '@/lib/money'
 import { cn } from '@/lib/utils'
@@ -48,8 +48,11 @@ export function BookD() {
   const invoices = [...rent.invoices].sort((a, b) => (a.date !== b.date ? (a.date < b.date ? -1 : 1) : (a.number ?? '9999').localeCompare(b.number ?? '9999')))
   const lastRent = lastRentInvoice(rent)
   const np = nextPeriod(rent)
-  const t = totals(rent)
+  const t = totalsSplit(rent)
   const charges = openCharges(rent)
+  const blocked = invoiceBlocked(rent)
+  // Що чекає — номерами в шапці: книга лишається хронологією, а відповідь «чого чекаємо» видно без прокрутки.
+  const waiting = invoices.filter((i) => !['paid', 'cancelled', 'overpaid'].includes(invoiceState(rent, i).kind))
   const periodOpen = panel?.mode === 'new' && panel.via === 'period'
   const topPanel = panel && !periodOpen ? panel : null
 
@@ -75,26 +78,59 @@ export function BookD() {
   )
 
   return (
-    <section className="overflow-hidden rounded-lg border border-border bg-card" data-testid="book" aria-label="Рахунки і оплати">
-      <header className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-border px-4 py-2.5">
-        <h2 className="text-title font-semibold text-fg">Рахунки і оплати</h2>
-        <Proposal note="Книга замість блоку способів оплати: рахунок і під ним його платіжки, АВР і видаткова — як дерево документів 1С." />
-        {invoices.length > 0 && (
-          <span className="text-label tabular-nums text-muted-fg">
-            виставлено {formatMoney(t.issued)} — оплачено {formatMoney(t.paid)}
-            {t.balance > 0 && ` — на балансі ${formatMoney(t.balance)}`}
-          </span>
-        )}
-        <div className="ml-auto flex items-center gap-1.5">
-          <Button size="sm" variant="secondary" onClick={() => (panel?.mode === 'charge' ? setPanel(null) : open('charge'))} data-testid="book-add-charge">
-            <Plus aria-hidden />
-            Нарахування
-          </Button>
-          <Button size="sm" onClick={() => open({ via: 'button' })} data-testid="book-new" data-main-action="invoice">
-            <Plus aria-hidden />
-            Рахунок
-          </Button>
+    <section className="rounded-lg border border-border bg-card" data-testid="book" aria-label="Рахунки і оплати">
+      {/* Шапка липка: на десяти рахунках «+ Рахунок» і «чекають» не прокручуються геть. */}
+      <header className="sticky top-0 z-10 rounded-t-lg border-b border-border bg-card px-4 py-2.5">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+          <h2 className="text-title font-semibold text-fg">Рахунки і оплати</h2>
+          <Proposal note="Книга замість блоку способів оплати: рахунок і під ним його платіжки, АВР і видаткова — як дерево документів 1С." />
+          <div className="ml-auto flex items-center gap-1.5">
+            <Button size="sm" variant="secondary" onClick={() => (panel?.mode === 'charge' ? setPanel(null) : open('charge'))} data-testid="book-add-charge">
+              <Plus aria-hidden />
+              Нарахування
+            </Button>
+            <Button
+              size="sm"
+              variant={topPanel && topPanel.mode !== 'charge' ? 'secondary' : 'default'}
+              disabled={!!blocked}
+              title={blocked ?? undefined}
+              onClick={() => open({ via: 'button' })}
+              data-testid="book-new"
+              data-main-action="invoice"
+            >
+              <Plus aria-hidden />
+              Рахунок
+            </Button>
+          </div>
         </div>
+        {invoices.length > 0 && (
+          <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-0.5 text-label tabular-nums text-muted-fg">
+            {/* Застава окремо: обліково не сумується з орендою (§3). */}
+            <span>
+              оренда і послуги: виставлено {formatMoney(t.main.issued)}, оплачено {formatMoney(t.main.paid)}
+            </span>
+            {t.deposit.count > 0 && (
+              <span>
+                застава: {formatMoney(t.deposit.issued)}, оплачено {formatMoney(t.deposit.paid)}
+              </span>
+            )}
+            {waiting.length > 0 && (
+              <span className="flex flex-wrap items-center gap-1" data-testid="book-waiting">
+                чекають:
+                {waiting.map((i) => (
+                  <button
+                    key={i.id}
+                    type="button"
+                    onClick={() => document.querySelector(`[data-entry-id="${i.id}"]`)?.scrollIntoView({ block: 'center' })}
+                    className="inline-flex min-h-6 items-center rounded-sm px-1 font-medium text-accent-fg hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fg"
+                  >
+                    № {i.number ?? 'очікується'}
+                  </button>
+                ))}
+              </span>
+            )}
+          </div>
+        )}
       </header>
 
       {topPanel?.mode === 'charge' && (
@@ -149,7 +185,7 @@ function BookEntry({ rent, inv, onEdit }: { rent: Rent; inv: Invoice; onEdit: ()
   const off = view.state.kind === 'cancelled'
   if (off) {
     return (
-      <li className="flex flex-wrap items-baseline gap-x-2 border-b border-border px-4 py-1.5 text-body text-subtle" data-testid="book-entry" data-number={inv.number ?? ''}>
+      <li className="flex flex-wrap items-baseline gap-x-2 border-b border-border px-4 py-1.5 text-body text-muted-fg" data-testid="book-entry" data-number={inv.number ?? ''}>
         <Ban className="size-3.5 shrink-0 translate-y-0.5" aria-hidden />
         <span className="line-through">
           Рахунок № {inv.number ?? '—'} — {fmtDay(inv.date)} — {invoiceTitle(rent, inv)} — {formatMoney(invoiceTotal(inv))}
@@ -159,7 +195,7 @@ function BookEntry({ rent, inv, onEdit }: { rent: Rent; inv: Invoice; onEdit: ()
     )
   }
   return (
-    <li className="border-b border-border px-4 py-2" data-testid="book-entry" data-number={inv.number ?? ''} data-state={view.state.kind}>
+    <li className="scroll-mt-24 border-b border-border px-4 py-2" data-testid="book-entry" data-entry-id={inv.id} data-number={inv.number ?? ''} data-state={view.state.kind}>
       <div className="flex items-center gap-3">
         <span className={cn('size-2 shrink-0 rounded-[2px]', view.state.kind === 'paid' || view.state.kind === 'overpaid' ? 'bg-fg' : 'border border-fg-2')} aria-hidden />
         <p className="min-w-0 flex-1 text-body text-fg">
@@ -182,7 +218,7 @@ function BookEntry({ rent, inv, onEdit }: { rent: Rent; inv: Invoice; onEdit: ()
       </div>
       <div className="ml-5 flex max-w-2xl flex-col gap-1.5 empty:hidden">
         <FailedNotice inv={inv} className="mt-1.5 max-w-lg" />
-        <InvoiceTrail rent={rent} inv={inv} className="mt-1" />
+        <InvoiceTrail rent={rent} inv={inv} className="mt-1" signed />
         <OverpayNote rent={rent} inv={inv} />
         {cancelling && <CancelConfirm inv={inv} className="mt-1.5 max-w-md" onDone={() => setCancelling(false)} />}
       </div>

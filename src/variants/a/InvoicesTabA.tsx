@@ -1,8 +1,8 @@
 import { Fragment, useEffect, useRef, useState } from 'react'
 import { ChevronRight, Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { fmtDay, invoiceTotal, paidOf, totals } from '@/domain/money'
-import { invoiceTitle, lastRentInvoice, openCharges } from '@/domain/invoicing'
+import { fmtDay, invoiceState, invoiceTotal, onBalance, paidOf } from '@/domain/money'
+import { invoiceBlocked, invoiceTitle, lastRentInvoice, nextPeriod, openCharges, totalsSplit } from '@/domain/invoicing'
 import { useCard } from '@/features/rent/card-context'
 import { formatMoney } from '@/lib/money'
 import { cn } from '@/lib/utils'
@@ -51,10 +51,27 @@ export function InvoicesTabA() {
     setInvoiceErrand(null)
   }, [invoiceErrand, setInvoiceErrand])
 
-  const invoices = [...rent.invoices].sort((a, b) => (a.date !== b.date ? (a.date < b.date ? -1 : 1) : (a.number ?? '9999').localeCompare(b.number ?? '9999')))
+  // Дві групи: те, що ще чогось чекає, — зверху, решта — журналом за датою.
+  // На десяти рахунках неоплачений не має опинятись під згином.
+  const byDate = [...rent.invoices].sort((a, b) => (a.date !== b.date ? (a.date < b.date ? -1 : 1) : (a.number ?? '9999').localeCompare(b.number ?? '9999')))
+  const isOpen = (i: Invoice) => !['paid', 'cancelled'].includes(invoiceState(rent, i).kind)
+  const waiting = byDate.filter(isOpen)
+  const settled = byDate.filter((i) => !isOpen(i))
   const last = lastRentInvoice(rent)
-  const t = totals(rent)
+  const t = totalsSplit(rent)
+  const balance = onBalance(rent)
   const charges = openCharges(rent)
+  const np = nextPeriod(rent)
+  const blocked = invoiceBlocked(rent)
+  const row = (inv: Invoice) => (
+    <Row
+      key={inv.id}
+      rent={rent}
+      inv={inv}
+      onEdit={() => open({ invoiceId: inv.id })}
+      onNextPeriod={last?.id === inv.id && rent.status !== 'CLOSED' ? () => open({ via: 'period' }) : undefined}
+    />
+  )
 
   return (
     <section className="rounded-lg border border-border bg-card" data-testid="invoices-registry" aria-label="Рахунки оренди">
@@ -62,7 +79,16 @@ export function InvoicesTabA() {
         <h2 className="text-title font-semibold text-fg">Рахунки</h2>
         <Proposal note="Окрема вкладка «Рахунки»: реєстр усіх рахунків оренди з платіжками й документами 1С під кожним." />
         <span className="ml-2 text-label text-muted-fg">одержувач — {rent.orgId === 'bp-ua' ? 'ТОВ «Будпрокат Україна»' : 'організація складу'}</span>
-        <Button size="sm" className="ml-auto" onClick={() => open({ via: 'button' })} data-testid="registry-new" data-main-action="invoice">
+        <Button
+          size="sm"
+          className="ml-auto"
+          variant={seed ? 'secondary' : 'default'}
+          disabled={!!blocked}
+          title={blocked ?? undefined}
+          onClick={() => open({ via: 'button' })}
+          data-testid="registry-new"
+          data-main-action="invoice"
+        >
           <Plus aria-hidden />
           Новий рахунок
         </Button>
@@ -73,11 +99,23 @@ export function InvoicesTabA() {
           <InvoiceComposer key={seed.nonce} seed={seed} onClose={() => setSeed(null)} className="max-w-xl rounded-lg border border-border bg-card" />
         </div>
       )}
+      {!seed && np.due && last && (
+        <div className="flex items-center gap-3 border-b border-border bg-accent-soft/60 px-4 py-2" data-testid="registry-next-hint">
+          <p className="text-body text-accent-fg">
+            <span className="font-medium">Не виставлено з {fmtDay(np.from)}</span>
+            <span className="text-fg-2"> — останній рахунок оренди № {last.number ?? '—'} закінчується {fmtDay(last.period!.to)}</span>
+          </p>
+          <Proposal note="Підказка з’являється, коли до кінця виставленого періоду менше 3 діб; копіює рядки останнього рахунку оренди." />
+          <Button size="sm" variant="secondary" className="ml-auto" onClick={() => open({ via: 'period' })} data-testid="registry-next-period-hint">
+            Копіювати на {fmtDay(np.from)}–{fmtDay(np.to)}
+          </Button>
+        </div>
+      )}
       {!seed && charges.length > 0 && (
         <OpenCharges rent={rent} charges={charges} onInvoice={(id) => open({ via: 'charge', chargeId: id })} className="max-w-xl border-b border-border px-4 py-2.5" />
       )}
 
-      {invoices.length === 0 ? (
+      {byDate.length === 0 ? (
         <p className="px-4 py-6 text-body text-muted-fg" data-testid="invoices-empty">
           Рахунків ще немає. Оренда і застава сформуються самі на переході до оплати.
         </p>
@@ -86,7 +124,7 @@ export function InvoicesTabA() {
           <thead>
             <tr className="border-b border-border text-left text-label text-muted-fg">
               <th className="w-8" aria-label="Розкрити" />
-              <th className="w-24 px-2 py-1.5 font-medium">№</th>
+              <th className="w-32 px-2 py-1.5 font-medium">№</th>
               <th className="w-16 px-2 py-1.5 font-medium">Дата</th>
               <th className="px-2 py-1.5 font-medium">Що</th>
               <th className="w-28 px-2 py-1.5 text-right font-medium">Сума з ПДВ</th>
@@ -95,27 +133,37 @@ export function InvoicesTabA() {
               <th className="w-28" aria-label="Дії" />
             </tr>
           </thead>
-          <tbody>
-            {invoices.map((inv) => (
-              <Row
-                key={inv.id}
-                rent={rent}
-                inv={inv}
-                onEdit={() => open({ invoiceId: inv.id })}
-                onNextPeriod={last?.id === inv.id && rent.status !== 'CLOSED' ? () => open({ via: 'period' }) : undefined}
-              />
-            ))}
-          </tbody>
-          <tfoot>
-            <tr className="border-t border-border-strong text-label text-muted-fg">
-              <td colSpan={4} className="px-4 py-2">
-                Разом по чинних рахунках
+          {waiting.length > 0 && (
+            <tbody>
+              <GroupRow label={`Чекають оплати або номера — ${waiting.length}`} />
+              {waiting.map(row)}
+            </tbody>
+          )}
+          {settled.length > 0 && (
+            <tbody>
+              <GroupRow label={`Оплачені й скасовані — ${settled.length}`} />
+              {settled.map(row)}
+            </tbody>
+          )}
+          <tfoot className="text-label text-muted-fg">
+            {/* Застава окремим рядком: з орендою вона обліково не сумується (§3). */}
+            <tr className="border-t border-border-strong">
+              <td colSpan={4} className="px-4 pt-2">
+                Оренда і послуги, з ПДВ
               </td>
-              <td className="px-2 py-2 text-right text-body font-medium text-fg">{formatMoney(t.issued)}</td>
-              <td className="px-2 py-2 text-body text-fg">{formatMoney(t.paid)}</td>
-              <td colSpan={2} className="px-2 py-2">
-                {t.balance > 0 ? `на балансі ${formatMoney(t.balance)}` : 'на балансі 0'}
+              <td className="px-2 pt-2 text-right text-body font-medium text-fg">{formatMoney(t.main.issued)}</td>
+              <td className="px-2 pt-2 text-body text-fg">{formatMoney(t.main.paid)}</td>
+              <td colSpan={2} className="px-2 pt-2">
+                {balance > 0 ? `на балансі ${formatMoney(balance)}` : ''}
               </td>
+            </tr>
+            <tr>
+              <td colSpan={4} className="px-4 pb-2">
+                Застава, без ПДВ
+              </td>
+              <td className="px-2 pb-2 text-right text-body font-medium text-fg">{formatMoney(t.deposit.issued)}</td>
+              <td className="px-2 pb-2 text-body text-fg">{formatMoney(t.deposit.paid)}</td>
+              <td colSpan={2} />
             </tr>
           </tfoot>
         </table>
@@ -152,27 +200,35 @@ function Row({ rent, inv, onEdit, onNextPeriod }: { rent: Rent; inv: Invoice; on
           </button>
         </td>
         <td className="px-2 py-2">
-          <NumberSlot inv={inv} className={cn('font-medium', off ? 'text-subtle line-through' : 'text-fg')} />
+          <NumberSlot inv={inv} className={cn('font-medium', off ? 'text-muted-fg line-through' : 'text-fg')} />
         </td>
-        <td className={cn('px-2 py-2', off ? 'text-subtle' : 'text-fg-2')}>{fmtDay(inv.date)}</td>
+        <td className={cn('px-2 py-2', off ? 'text-muted-fg' : 'text-fg-2')}>{fmtDay(inv.date)}</td>
         <td className="px-2 py-2">
-          <p className={cn(off ? 'text-subtle line-through' : 'text-fg')}>{invoiceTitle(rent, inv)}</p>
+          <p className={cn(off ? 'text-muted-fg line-through' : 'text-fg')}>{invoiceTitle(rent, inv)}</p>
           {off ? <CancelledLine inv={inv} /> : <DocRefs rent={rent} inv={inv} />}
         </td>
-        <td className={cn('px-2 py-2 text-right font-medium', off ? 'text-subtle line-through' : 'text-fg')} data-amount-due="registry">
+        <td className={cn('px-2 py-2 text-right font-medium', off ? 'text-muted-fg line-through' : 'text-fg')} data-amount-due="registry">
           {formatMoney(invoiceTotal(inv))}
         </td>
         <td className="px-2 py-2">
           {off ? (
-            <span className="text-subtle">—</span>
+            <span className="text-muted-fg">—</span>
           ) : (
             <>
-              <span className={paid > 0 ? 'text-fg' : 'text-subtle'}>{paid > 0 ? formatMoney(paid) : '—'}</span>
+              <span className={paid > 0 ? 'text-fg' : 'text-muted-fg'}>{paid > 0 ? formatMoney(paid) : '—'}</span>
               <PayRefs rent={rent} inv={inv} />
             </>
           )}
         </td>
-        <td className="px-2 py-2">{off ? <span className="text-label text-muted-fg">Скасовано</span> : <StatusBadge rent={rent} inv={inv} />}</td>
+        <td className="px-2 py-2">
+          {off ? (
+            <span className="text-label text-muted-fg">Скасовано</span>
+          ) : k === 'number-pending' ? (
+            <span className="text-label text-muted-fg">Чекає номер 1С</span>
+          ) : (
+            <StatusBadge rent={rent} inv={inv} />
+          )}
+        </td>
         <td className="py-1.5 pr-3">
           <span className="flex items-center justify-end gap-0.5">
             <PrintIcons inv={inv} />
@@ -215,6 +271,16 @@ function Row({ rent, inv, onEdit, onNextPeriod }: { rent: Rent; inv: Invoice; on
         </tr>
       )}
     </Fragment>
+  )
+}
+
+function GroupRow({ label }: { label: string }) {
+  return (
+    <tr className="border-b border-border bg-muted/50">
+      <td colSpan={8} className="px-4 py-1 text-label font-medium text-muted-fg">
+        {label}
+      </td>
+    </tr>
   )
 }
 

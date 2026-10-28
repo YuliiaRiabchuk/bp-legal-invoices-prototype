@@ -71,7 +71,22 @@ export function ExtendAction() {
             className="h-8 w-[10rem]"
             data-testid="extend-date"
           />
-          <span className="tabular-nums text-fg-2">{n > 0 ? `+${daysWord(n)}` : ''}</span>
+          <span className="flex items-center gap-1">
+            або +
+            {/* Клієнт просить «ще 7 діб» — менеджер вводить доби, а не рахує дату. */}
+            <Input
+              value={n > 0 ? String(n) : ''}
+              inputMode="numeric"
+              aria-label="Скільки діб додати"
+              onChange={(e) => {
+                const d = Math.round(Number(e.target.value))
+                if (d > 0 && d < 366) setTo(addDays(from, d - 1))
+              }}
+              className="h-8 w-14 text-right tabular-nums"
+              data-testid="extend-days"
+            />
+            {n > 0 ? daysWord(n).replace(/^\d+\s/, '') : 'діб'}
+          </span>
         </label>
         <p className="mt-2 text-label text-fg-2">
           {n > 0 ? (

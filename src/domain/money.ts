@@ -224,22 +224,35 @@ export function totals(rent: Rent, mode: PayMode = 'booked') {
 
 /**
  * «Грошей вистачить до» (G2, пропозиція): проведені гроші по рахунках оренди
- * з ПДВ плюс баланс, мінус нарахування, поділені на ставку за добу з ПДВ.
- * Застава окремо. Підтвердження менеджера не рахуються (D6).
+ * з ПДВ, поділені на ставку за добу з ПДВ. Застава окремо. Підтвердження
+ * менеджера не рахуються (D6).
+ *
+ * Гроші на балансі (нерозпізнана платіжка, переплата) рахуються окремою
+ * частиною: G2 говорить про платіжки по рахунках оренди, тож дата «за
+ * рахунками» і дата «з балансом» показуються обидві, а не зливаються мовчки.
  */
-export function coveredUntil(rent: Rent): { date: string; days: number; money: number } {
+export function coveredUntil(rent: Rent): {
+  date: string
+  days: number
+  money: number
+  balance: number
+  invoiced: { date: string; days: number; money: number }
+} {
   const isRentInv = (i: Invoice) => i.kind !== 'deposit'
-  const money =
-    live(rent)
-      .filter(isRentInv)
-      .reduce((s, i) => {
-        const rentPart = i.lines.filter((l) => !l.from?.chargeId && !l.from?.deposit)
-        const share = invoiceTotal(i) ? rentPart.reduce((a, l) => a + lineGross(l), 0) / invoiceTotal(i) : 0
-        return s + Math.min(paidOf(rent, i), invoiceTotal(i)) * share
-      }, 0) + onBalance(rent)
+  const invoicedMoney = live(rent)
+    .filter(isRentInv)
+    .reduce((s, i) => {
+      const rentPart = i.lines.filter((l) => !l.from?.chargeId && !l.from?.deposit)
+      const share = invoiceTotal(i) ? rentPart.reduce((a, l) => a + lineGross(l), 0) / invoiceTotal(i) : 0
+      return s + Math.min(paidOf(rent, i), invoiceTotal(i)) * share
+    }, 0)
+  const balance = onBalance(rent)
   const rate = dailyGross(rent)
-  const days = rate > 0 ? Math.floor(money / rate) : 0
-  return { date: addDays(rent.issueAt, days - 1), days, money: round2(money) }
+  const at = (money: number) => {
+    const days = rate > 0 ? Math.floor(money / rate) : 0
+    return { date: addDays(rent.issueAt, days - 1), days, money: round2(money) }
+  }
+  return { ...at(invoicedMoney + balance), balance: round2(balance), invoiced: at(invoicedMoney) }
 }
 
 /** Ім'я файлу PDF (D10, G3). */

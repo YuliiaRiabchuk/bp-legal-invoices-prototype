@@ -24,7 +24,8 @@ export function Proposal({ note, className }: { note?: string; className?: strin
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        <span tabIndex={0} className="inline-flex rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fg">
+        {/* Без зупинки Tab: це примітка до кадру, а не дія. Текст підказки дублює `title`. */}
+        <span className="inline-flex rounded-sm" title={note}>
           {tag}
         </span>
       </TooltipTrigger>

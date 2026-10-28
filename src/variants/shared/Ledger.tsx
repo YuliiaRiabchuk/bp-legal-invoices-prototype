@@ -114,7 +114,7 @@ export function ChargesLedger({ rent, onInvoice }: { rent: Rent; onInvoice?: (ch
             key={c.id}
             className={cn(
               'grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_7rem] items-center gap-x-4 border-b border-border px-4 py-2 last:border-0',
-              place.kind === 'cancelled' && 'text-subtle',
+              place.kind === 'cancelled' && 'text-muted-fg',
             )}
           >
             <div className="min-w-0">
@@ -139,11 +139,11 @@ export function ChargesLedger({ rent, onInvoice }: { rent: Rent; onInvoice?: (ch
                   <span className="font-medium text-notice-fg">ще не виставлено</span>
                   {onInvoice && (
                     <>
-                      <button type="button" onClick={() => onInvoice(c.id)} className="font-medium text-accent-fg hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fg" data-testid="open-charge-invoice">
+                      <button type="button" onClick={() => onInvoice(c.id)} className="-my-1 inline-flex min-h-6 items-center rounded-sm px-1 font-medium text-accent-fg hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fg" data-testid="open-charge-invoice">
                         У рахунок
                       </button>
                       {c.kind === 'charge' && (
-                        <button type="button" onClick={() => setCashFor(c.id)} className="font-medium text-accent-fg hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fg" data-testid="open-charge-cash">
+                        <button type="button" onClick={() => setCashFor(c.id)} className="-my-1 inline-flex min-h-6 items-center rounded-sm px-1 font-medium text-accent-fg hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fg" data-testid="open-charge-cash">
                           Готівкою
                         </button>
                       )}

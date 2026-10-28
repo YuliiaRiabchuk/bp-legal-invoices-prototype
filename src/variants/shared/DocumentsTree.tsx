@@ -44,7 +44,7 @@ export function DocumentsTree() {
               <li key={inv.id} className="border-b border-border last:border-0" data-testid="doc-row" data-number={inv.number ?? ''}>
                 <div className="grid grid-cols-[minmax(0,1fr)_8rem_11rem_5.5rem] items-center gap-x-4 px-4 py-2">
                   <div className="min-w-0">
-                    <p className={cn('flex items-center gap-1.5 text-body font-medium', off ? 'text-subtle line-through' : 'text-fg')}>
+                    <p className={cn('flex items-center gap-1.5 text-body font-medium', off ? 'text-muted-fg line-through' : 'text-fg')}>
                       <FileText className="size-3.5 shrink-0 text-muted-fg" aria-hidden />
                       Рахунок на оплату № {inv.number ?? '—'} від {fmtDate(inv.date)}
                     </p>
@@ -53,7 +53,7 @@ export function DocumentsTree() {
                       {off && ` — скасовано: ${inv.cancelled!.by}, ${inv.cancelled!.at}`}
                     </p>
                   </div>
-                  <span className={cn('text-right text-body tabular-nums', off ? 'text-subtle line-through' : 'text-fg')} data-amount-due="documents">
+                  <span className={cn('text-right text-body tabular-nums', off ? 'text-muted-fg line-through' : 'text-fg')} data-amount-due="documents">
                     {formatMoney(invoiceTotal(inv))}
                   </span>
                   <span>

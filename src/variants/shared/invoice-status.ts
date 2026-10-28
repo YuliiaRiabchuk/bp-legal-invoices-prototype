@@ -6,7 +6,7 @@ export type StatusTone = 'default' | 'outline' | 'accent' | 'success' | 'warning
 
 /**
  * Статус рахунку словами (C6: повний перелік затверджено, нові — пропозиція).
- * Колір — стан грошей: чекаємо — синій, недоплата — бурштин, оплачено —
+ * Колір — стан грошей: чекаємо — синій, частково — бурштин, оплачено —
  * зелений, помилка 1С — червоний. Переплата не тривога: гроші на балансі.
  */
 export function statusView(rent: Rent, inv: Invoice): { state: InvoiceState; label: string; tone: StatusTone } {
@@ -21,7 +21,8 @@ export function statusView(rent: Rent, inv: Invoice): { state: InvoiceState; lab
     case 'unpaid':
       return { state, label: 'Очікує надходження', tone: 'accent' }
     case 'partial':
-      return { state, label: `Недоплата ${formatMoney(state.left)}`, tone: 'warning' }
+      // Скільки ще чекаємо, а не «недоплата»: чи прийде друга платіжка, наперед не відомо.
+      return { state, label: `Частково, лишилось ${formatMoney(state.left)}`, tone: 'warning' }
     case 'paid':
       return { state, label: 'Оплачено', tone: 'success' }
     case 'overpaid':

@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { Ban, Check, Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { addDays, coveredUntil, dailyGross, daysIncl, fmtDate, fmtDay, invoiceState, invoiceTotal, isVatFree, paidOf, paymentsOf } from '@/domain/money'
-import { invoiceTitle, lastRentInvoice, nextPeriod, rentBilledUntil } from '@/domain/invoicing'
+import { invoiceBlocked, invoiceTitle, lastRentInvoice, nextPeriod, rentBilledUntil } from '@/domain/invoicing'
 import { useCard } from '@/features/rent/card-context'
 import { formatMoney } from '@/lib/money'
 import { days as daysWord, forDays } from '@/lib/plural'
@@ -79,8 +79,11 @@ export function StripC() {
   const np = nextPeriod(rent)
   const billed = rentBilledUntil(rent)
   const cov = coveredUntil(rent)
-  const hasCov = cov.money > 0 && cov.days > 0
-  const showGap = !!lastRent && rent.status !== 'CLOSED'
+  const live = !['DRAFT', 'CLOSED', 'AWAITING_CLOSURE'].includes(rent.status)
+  const hasCov = live && cov.money > 0 && cov.days > 0
+  // Прогалина «не виставлено» має сенс, коли оренда вже йде; на «Оплаті» перші рахунки ще без номера.
+  const showGap = !!lastRent && ['ACTIVE', 'EXPIRING_SOON', 'OVERDUE'].includes(rent.status)
+  const blocked = invoiceBlocked(rent)
 
   // ── Вісь ──
   const starts = [rent.issueAt, ...rent.invoices.map((i) => i.period?.from ?? i.date)]
@@ -106,7 +109,16 @@ export function StripC() {
         <span className="ml-2 text-label text-muted-fg">
           {fmtDate(rent.issueAt)} — повернення {fmtDate(rent.returnAt)}
         </span>
-        <Button size="sm" className="ml-auto" onClick={() => open({ via: 'button' })} data-testid="strip-new" data-main-action="invoice">
+        <Button
+          size="sm"
+          className="ml-auto"
+          variant={panel ? 'secondary' : 'default'}
+          disabled={!!blocked}
+          title={blocked ?? undefined}
+          onClick={() => open({ via: 'button' })}
+          data-testid="strip-new"
+          data-main-action="invoice"
+        >
           <Plus aria-hidden />
           Рахунок
         </Button>
@@ -179,17 +191,17 @@ export function StripC() {
             </span>
             {hasCov && (
               <span
-                className="absolute whitespace-nowrap font-medium text-success-fg"
+                className={cn('absolute whitespace-nowrap font-medium text-success-fg', x(cov.date) + px > width - 130 && '-translate-x-full')}
                 style={{ left: x(cov.date) + px - 3, top: Math.abs(x(cov.date) + px - x(rent.today)) < 110 ? 18 : 2 }}
               >
-                ▲ вистачить до {fmtDay(cov.date)}
+                {x(cov.date) + px > width - 130 ? `вистачить до ${fmtDay(cov.date)} ▲` : `▲ вистачить до ${fmtDay(cov.date)}`}
               </span>
             )}
           </div>
         </div>
       </div>
 
-      <Coverage rent={rent} />
+      <Coverage rent={rent} onInvoiceTo={(to) => open({ via: 'period', to })} />
 
       <div className="border-t border-border bg-muted/30 px-4 py-3" data-testid="strip-detail">
         {panel ? (
@@ -214,7 +226,9 @@ export function StripC() {
 function defaultPick(rent: Rent): Invoice | undefined {
   const order = ['number-failed', 'partial', 'number-pending', 'unpaid', 'overpaid']
   for (const k of order) {
-    const hit = rent.invoices.filter((i) => invoiceState(rent, i).kind === k).at(-1)
+    // Серед рівних — рахунок оренди раніше за заставу: строк питають частіше.
+    const hits = rent.invoices.filter((i) => invoiceState(rent, i).kind === k)
+    const hit = hits.filter((i) => i.kind !== 'deposit').at(-1) ?? hits.at(-1)
     if (hit) return hit
   }
   return [...rent.invoices].sort((a, b) => (a.date < b.date ? -1 : 1)).at(-1)
@@ -236,7 +250,7 @@ const STATE_EDGE: Record<string, string> = {
   unpaid: 'border-accent/70',
   'number-pending': 'border-dashed border-border-strong',
   'number-failed': 'border-danger',
-  cancelled: 'border-border opacity-60',
+  cancelled: 'border-border bg-muted text-muted-fg',
 }
 
 /** Відрізок рахунку оренди: заливка — оплачена частка. */
@@ -300,7 +314,7 @@ function Points({ rent, items, x, chosen, onSelect }: { rent: Rent; items: Invoi
     rows.push({ inv, left, row })
   }
   const height = Math.max(1, lastRight.length) * 38
-  if (items.length === 0) return <div className="h-7 pt-1.5 text-label text-subtle">—</div>
+  if (items.length === 0) return <div className="h-7 pt-1.5 text-label text-muted-fg">немає</div>
   return (
     <div className="relative" style={{ height }}>
       {rows.map(({ inv, left, row }) => {
@@ -320,6 +334,7 @@ function Points({ rent, items, x, chosen, onSelect }: { rent: Rent; items: Invoi
               chosen === inv.id && 'ring-2 ring-fg ring-offset-1',
             )}
             style={{ left, top: row * 38, width: CHIP }}
+            title={`№ ${inv.number ?? 'очікується'} — ${invoiceTitle(rent, inv)}`}
             data-testid="strip-point"
             data-number={inv.number ?? ''}
           >
@@ -353,7 +368,7 @@ function Detail({ rent, inv, cancelling, setCancelling, onEdit }: { rent: Rent; 
   return (
     <div className="flex flex-col gap-2" data-testid="strip-selected" data-number={inv.number ?? ''}>
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-        <p className={cn('text-body font-semibold text-fg', off && 'text-subtle line-through')}>
+        <p className={cn('text-body font-semibold text-fg', off && 'text-muted-fg line-through')}>
           <NumberSlot inv={inv} /> <span className="font-normal text-fg-2">— {invoiceTitle(rent, inv)} — від {fmtDate(inv.date)}, {isVatFree(inv) ? 'без ПДВ' : 'з ПДВ'}</span>
         </p>
         <span className="text-title font-semibold tabular-nums text-fg" data-amount-due="strip-detail">
@@ -382,13 +397,18 @@ function Detail({ rent, inv, cancelling, setCancelling, onEdit }: { rent: Rent; 
   )
 }
 
-/** «Вистачить до» словами під стрічкою + пропозиція перенести повернення (shape §7). */
-function Coverage({ rent }: { rent: Rent }) {
-  const { dispatch } = useStore()
-  if (rent.status === 'CLOSED' || rent.status === 'DRAFT') return null
+/**
+ * «Вистачить до» словами під стрічкою. Гроші на балансі (нерозпізнана
+ * платіжка) названо окремо, і замість голого «перенести повернення» —
+ * рахунок на доби, які вони покривають: під нього бухгалтер закриє АВР.
+ */
+function Coverage({ rent, onInvoiceTo }: { rent: Rent; onInvoiceTo: (to: string) => void }) {
+  if (['CLOSED', 'DRAFT', 'AWAITING_CLOSURE'].includes(rent.status)) return null
   const c = coveredUntil(rent)
   const has = c.money > 0 && c.days > 0
   const extra = has ? c.days - daysIncl(rent.issueAt, rent.returnAt) : 0
+  const billedTo = rentBilledUntil(rent)
+  const uninvoiced = has && billedTo && c.date > billedTo
   return (
     <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-border px-4 py-2 text-label" data-testid="coverage">
       {has ? (
@@ -400,14 +420,15 @@ function Coverage({ rent }: { rent: Rent }) {
             </span>
           </span>
           <span className="tabular-nums text-muted-fg">
-            {formatMoney(c.money)} з ПДВ ÷ {formatMoney(dailyGross(rent))} за добу = {daysWord(c.days)}; застава не входить
+            {formatMoney(c.money)} з ПДВ ÷ {formatMoney(dailyGross(rent))} за добу = {daysWord(c.days)}
+            {c.balance > 0 && `, з них ${formatMoney(c.balance)} на балансі без рахунку (за рахунками — до ${fmtDay(c.invoiced.date)})`}
           </span>
-          <Proposal note="Продовження (б): кнопки «Продовжити» немає, позначка «вистачить до» стоїть на тій самій осі, що й рахунки." />
-          {extra > 0 && (
+          <Proposal note="Продовження (б): кнопки «Продовжити» немає, позначка «вистачить до» стоїть на тій самій осі, що й рахунки. Застава не входить." />
+          {uninvoiced && extra > 0 && (
             <span className="ml-auto flex items-center gap-2 text-success-fg" data-testid="coverage-extend">
-              Оплачено на {forDays(extra)} довше за план
-              <Button size="sm" variant="secondary" onClick={() => dispatch({ type: 'EXTEND', to: c.date })} data-testid="coverage-extend-submit">
-                Перенести повернення на {fmtDay(c.date)}
+              ще {forDays(extra)} після повернення без рахунку
+              <Button size="sm" variant="secondary" onClick={() => onInvoiceTo(c.date)} data-testid="coverage-invoice">
+                Рахунок до {fmtDay(c.date)}
               </Button>
             </span>
           )}

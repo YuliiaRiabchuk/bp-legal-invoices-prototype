@@ -1,8 +1,8 @@
 import { useRef, useState } from 'react'
 import { CalendarClock, ChevronDown, Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { coveredUntil, dailyGross, daysIncl, fmtDate, fmtDay, invoiceState, isVatFree } from '@/domain/money'
-import { byFreshness, lastRentInvoice, nextPeriod, openCharges } from '@/domain/invoicing'
+import { coveredUntil, dailyGross, daysIncl, fmtDate, fmtDay, invoiceState } from '@/domain/money'
+import { byFreshness, invoiceBlocked, lastRentInvoice, nextPeriod, openCharges, rentBilledUntil } from '@/domain/invoicing'
 import { formatMoney } from '@/lib/money'
 import { days as daysWord, forDays, plural } from '@/lib/plural'
 import { cn } from '@/lib/utils'
@@ -39,9 +39,11 @@ export function RailB() {
   const np = nextPeriod(rent)
   const prevRent = lastRentInvoice(rent)
   const charges = openCharges(rent)
+  const blocked = invoiceBlocked(rent)
 
   return (
     <div className="flex flex-col gap-3" data-testid="rail-b">
+      {rent.status !== 'CLOSED' && rent.status !== 'DRAFT' && <CoverageB rent={rent} onInvoiceTo={(to) => open({ via: 'period', to })} />}
       <section className="overflow-hidden rounded-lg border border-border bg-card" aria-label="Рахунки оренди" data-testid="rail-invoices">
         <header className="flex items-center gap-2 px-3 py-2.5">
           <h2 className="text-title font-semibold text-fg">Рахунки</h2>
@@ -59,6 +61,10 @@ export function RailB() {
             </Button>
             <Button
               size="sm"
+              // Поки бланк відкритий, головна кнопка рейлу — «Сформувати»: дві чорні поруч не стоять.
+              variant={panel && panel.mode !== 'charge' ? 'secondary' : 'default'}
+              disabled={!!blocked}
+              title={blocked ?? undefined}
               onClick={() => (panel?.mode === 'new' && panel.via === 'button' ? setPanel(null) : open({ via: 'button' }))}
               aria-pressed={panel?.mode === 'new'}
               data-testid="rail-b-add-invoice"
@@ -118,7 +124,6 @@ export function RailB() {
         )}
       </section>
 
-      {rent.status !== 'CLOSED' && rent.status !== 'DRAFT' && <CoverageB rent={rent} />}
     </div>
   )
 }
@@ -161,77 +166,72 @@ function Stack({ rent, invoices, onEdit }: { rent: Rent; invoices: Invoice[]; on
 }
 
 /**
- * «Грошей вистачить до» — продовження (б), пропозиція (G2). Проведені
- * платіжки по рахунках оренди з ПДВ плюс баланс, поділені на ставку за добу
- * з ПДВ. Застава окремо і сюди не входить.
+ * «Грошей вистачить до» — продовження (б), пропозиція (G2). Стоїть угорі
+ * рейлу: для (б) це головна відповідь про строк, і на 1366×768 вона не має
+ * опинятись під стосом рахунків.
  *
- * Дата повернення сама не зсувається: якщо грошей вистачає довше за план,
- * блок пропонує перенести повернення, і менеджер підтверджує (shape §7).
+ * Дата рахується з проведених платіжок по рахунках оренди. Гроші на балансі
+ * (нерозпізнана платіжка) названо окремим рядком, і дата з ними — окремо:
+ * мовчки зливати їх не можна, бо під них немає рахунку, а значить і АВР.
+ * Тому замість голого «перенести повернення» блок пропонує виставити рахунок
+ * на доби, які ці гроші покривають, — повернення переноситься разом із ним.
  */
-function CoverageB({ rent }: { rent: Rent }) {
-  const { dispatch } = useStore()
+function CoverageB({ rent, onInvoiceTo }: { rent: Rent; onInvoiceTo: (to: string) => void }) {
   const c = coveredUntil(rent)
   const rate = dailyGross(rent)
   const has = c.money > 0 && c.days > 0
-  const span = Math.max(daysIncl(rent.issueAt, rent.returnAt), has ? c.days : 0, daysIncl(rent.issueAt, rent.today))
-  const pct = (d: number) => `${Math.min(100, Math.max(0, (d / span) * 100))}%`
   const returnDays = daysIncl(rent.issueAt, rent.returnAt)
   const todayDays = daysIncl(rent.issueAt, rent.today)
+  const span = Math.max(returnDays, has ? c.days : 0, todayDays)
+  const pct = (d: number) => `${Math.min(100, Math.max(0, (d / span) * 100))}%`
   const extra = has ? c.days - returnDays : 0
-  const deposit = rent.invoices.find((i) => i.kind === 'deposit' && !i.cancelled)
+  const billedTo = rentBilledUntil(rent)
+  // Доби, які покривають гроші, але під які ще немає рахунку.
+  const uninvoiced = has && billedTo && c.date > billedTo
   return (
     <section className="rounded-lg border border-border bg-card px-3 py-2.5" aria-label="Оренда: до якої дати вистачить" data-testid="coverage">
       <header className="flex items-center gap-2">
-        <h2 className="text-title font-semibold text-fg">Оренда</h2>
-        <Proposal note="Замість кнопки «Продовжити оренду»: проведені платіжки по рахунках оренди з ПДВ плюс баланс, поділені на ставку за добу з ПДВ. Застава не входить." />
+        <h2 className="text-body font-semibold text-fg">Оренда</h2>
+        <Proposal note="Замість кнопки «Продовжити оренду»: проведені платіжки по рахунках оренди з ПДВ, поділені на ставку за добу з ПДВ. Гроші на балансі — окремо. Застава не входить." />
+        <span className="ml-auto text-label tabular-nums text-muted-fg">повернення {fmtDay(rent.returnAt)}</span>
       </header>
       {has ? (
         <>
-          <p className="mt-1.5 text-body text-fg-2">
-            Грошей вистачить до <span className="text-title font-semibold tabular-nums text-fg" data-testid="covered-until">{fmtDate(c.date)}</span>
+          <p className="mt-1 text-body text-fg-2">
+            Грошей вистачить до{' '}
+            <span className="font-semibold tabular-nums text-fg" data-testid="covered-until">
+              {fmtDate(c.date)}
+            </span>
           </p>
           <p className="text-label tabular-nums text-muted-fg">
             {formatMoney(c.money)} з ПДВ ÷ {formatMoney(rate)} за добу = {daysWord(c.days)} від {fmtDay(rent.issueAt)}
           </p>
+          {c.balance > 0 && (
+            <p className="mt-0.5 text-label text-fg-2" data-testid="coverage-balance">
+              з них <span className="font-medium tabular-nums">{formatMoney(c.balance)}</span> на балансі, без рахунку; за рахунками — до {fmtDay(c.invoiced.date)}
+            </p>
+          )}
+          <div className="relative mt-2 h-1.5 rounded-full bg-muted" aria-hidden>
+            <div className="absolute inset-y-0 left-0 rounded-full bg-success" style={{ width: pct(c.invoiced.days) }} />
+            {c.balance > 0 && <div className="absolute inset-y-0 rounded-r-full bg-success/40" style={{ left: pct(c.invoiced.days), width: `calc(${pct(c.days)} - ${pct(c.invoiced.days)})` }} />}
+            <div className="absolute -top-1 h-3.5 w-px bg-fg" style={{ left: pct(returnDays) }} />
+            <div className="absolute -top-0.5 size-2.5 -translate-x-1/2 rounded-full border-2 border-card bg-accent" style={{ left: pct(todayDays) }} />
+          </div>
         </>
       ) : (
-        <p className="mt-1.5 text-body text-fg-2">Проведених оплат за оренду ще немає</p>
+        <p className="mt-1 text-body text-fg-2">Проведених оплат за оренду ще немає</p>
       )}
-      {has && (
-      <div className="relative mt-2.5 h-1.5 rounded-full bg-muted" aria-hidden>
-        {<div className="absolute inset-y-0 left-0 rounded-full bg-success transition-[width] duration-200 ease-out motion-reduce:transition-none" style={{ width: pct(c.days) }} />}
-        <div className="absolute -top-1 h-3.5 w-px bg-fg" style={{ left: pct(returnDays) }} title="Повернення за планом" />
-        <div className="absolute -top-0.5 size-2.5 -translate-x-1/2 rounded-full border-2 border-card bg-accent" style={{ left: pct(todayDays) }} title="Сьогодні" />
-      </div>
-      )}
-      <dl className="mt-2 grid grid-cols-[1fr_auto] gap-y-0.5 text-label">
-        <dt className="flex items-center gap-1.5 text-muted-fg">
-          <span className="h-3 w-px bg-fg" aria-hidden />
-          повернення за планом
-        </dt>
-        <dd className="text-right tabular-nums text-fg">{fmtDate(rent.returnAt)}</dd>
-        <dt className="flex items-center gap-1.5 text-muted-fg">
-          <span className="size-2 rounded-full bg-accent" aria-hidden />
-          сьогодні, {daysWord(todayDays)} оренди
-        </dt>
-        <dd className="text-right tabular-nums text-fg">{fmtDate(rent.today)}</dd>
-      </dl>
-      {has && extra > 0 && (
-        <div className="mt-2.5 flex items-center gap-2 rounded-md bg-success-soft px-2.5 py-2" data-testid="coverage-extend">
-          <p className="min-w-0 flex-1 text-label text-success-fg">
-            Оплачено на {forDays(extra)} довше за план. Перенести повернення на {fmtDay(c.date)}?
-          </p>
-          <Button size="sm" variant="secondary" onClick={() => dispatch({ type: 'EXTEND', to: c.date })} data-testid="coverage-extend-submit">
-            Перенести
+      {uninvoiced && extra > 0 ? (
+        <div className="mt-2 flex items-center gap-2 rounded-md bg-success-soft px-2.5 py-1.5" data-testid="coverage-extend">
+          <p className="min-w-0 flex-1 text-label text-success-fg">Гроші покривають ще {forDays(extra)} після повернення — під них потрібен рахунок.</p>
+          <Button size="sm" variant="secondary" onClick={() => onInvoiceTo(c.date)} data-testid="coverage-invoice">
+            Рахунок до {fmtDay(c.date)}
           </Button>
         </div>
-      )}
-      {has && extra < 0 && rent.today <= rent.returnAt && (
-        <p className="mt-2 text-label text-warning-fg">Оплати бракує на {forDays(-extra)} до повернення за планом.</p>
-      )}
-      {deposit && (
-        <p className="mt-2 border-t border-border pt-2 text-label text-muted-fg">
-          Застава — окремим рахунком{deposit.number ? ` № ${deposit.number}` : ''}{isVatFree(deposit) ? ', без ПДВ' : ''}, у «вистачить до» не входить.
+      ) : (
+        // Рядок стану є завжди: його поява не має штовхати стос рахунків нижче (вимір зсуву).
+        <p className={cn('mt-1.5 text-label', has && extra < 0 ? 'text-warning-fg' : 'text-muted-fg')}>
+          {has && extra < 0 ? `Оплати бракує на ${forDays(-extra)} до повернення за планом.` : 'Застава — окремо, у «вистачить до» не входить.'}
         </p>
       )}
     </section>

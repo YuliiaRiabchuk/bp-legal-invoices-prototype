@@ -56,10 +56,10 @@ export function InvoiceCardB({ rent, inv, onEdit }: { rent: Rent; inv: Invoice; 
             className="-ml-1 flex min-w-0 flex-1 items-center gap-1.5 rounded-sm px-1 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fg"
           >
             {off ? <Ban className="size-3.5 shrink-0 text-subtle" aria-hidden /> : <Check className="size-3.5 shrink-0 text-success" aria-hidden />}
-            <NumberSlot inv={inv} className={cn('shrink-0 text-body font-medium', off ? 'text-subtle line-through' : 'text-fg')} />
-            <span className={cn('min-w-0 truncate text-body', off ? 'text-subtle line-through' : 'text-fg-2')}>{title}</span>
+            <NumberSlot inv={inv} className={cn('shrink-0 text-body font-medium', off ? 'text-muted-fg line-through' : 'text-fg')} />
+            <span className={cn('min-w-0 truncate text-body', off ? 'text-muted-fg line-through' : 'text-fg-2')}>{title}</span>
           </button>
-          <span className={cn('shrink-0 text-body tabular-nums', off ? 'text-subtle line-through' : 'text-fg-2')}>{formatMoney(total)}</span>
+          <span className={cn('shrink-0 text-body tabular-nums', off ? 'text-muted-fg line-through' : 'text-fg-2')}>{formatMoney(total)}</span>
           <Button
             size="icon"
             variant="ghost"

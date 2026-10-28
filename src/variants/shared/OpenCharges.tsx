@@ -47,11 +47,11 @@ export function OpenCharges({
                     {c.vatable && ORG_BY_ID[rent.orgId].vatPayer ? 'з ПДВ' : 'без ПДВ'} — {c.createdAt}
                   </span>
                   {c.kind === 'charge' && (
-                    <button type="button" onClick={() => setCashFor(c.id)} className="text-label font-medium text-accent-fg hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fg" data-testid="open-charge-cash">
+                    <button type="button" onClick={() => setCashFor(c.id)} className="-my-1 inline-flex min-h-6 items-center rounded-sm px-1 text-label font-medium text-accent-fg hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fg" data-testid="open-charge-cash">
                       Готівкою
                     </button>
                   )}
-                  <button type="button" onClick={() => onInvoice(c.id)} className="text-label font-medium text-accent-fg hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fg" data-testid="open-charge-invoice">
+                  <button type="button" onClick={() => onInvoice(c.id)} className="-my-1 inline-flex min-h-6 items-center rounded-sm px-1 text-label font-medium text-accent-fg hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fg" data-testid="open-charge-invoice">
                     У рахунок
                   </button>
                 </div>

@@ -29,7 +29,14 @@ import { Proposal } from './Proposal'
  */
 
 export type ComposerSeed =
-  | { mode: 'new'; via: 'button' | 'period' | 'charge'; chargeId?: string; nonce: number }
+  | {
+      mode: 'new'
+      via: 'button' | 'period' | 'charge'
+      chargeId?: string
+      /** «По яке число» замість межі ритму — напр. дата «вистачить до». */
+      to?: string
+      nonce: number
+    }
   | { mode: 'edit'; invoiceId: string; nonce: number }
 
 interface FreeRow {
@@ -69,8 +76,12 @@ export function InvoiceComposer({
   const editRent = editing?.period && editing.lines.some((l) => l.days != null) ? editing : undefined
   const periodFrom = editRent?.period?.from ?? np.from
   const [rentOn, setRentOn] = useState(seed.mode === 'edit' ? !!editRent : seed.via === 'period')
-  const [periodTo, setPeriodTo] = useState(editRent?.period?.to ?? np.to)
+  const [periodTo, setPeriodTo] = useState(editRent?.period?.to ?? (seed.mode === 'new' && seed.to && seed.to >= periodFrom ? seed.to : np.to))
   const days = Math.max(0, daysIncl(periodFrom, periodTo))
+  // Рахунок за доби після планового повернення — сам привід перенести повернення,
+  // інакше завтра оренда виглядатиме простроченою з оплаченим рахунком на руках.
+  const [moveReturn, setMoveReturn] = useState(true)
+  const beyondReturn = rentOn && days > 0 && periodTo > rent.returnAt
   const rentRows: InvoiceLine[] = useMemo(() => {
     if (editRent) return editRent.lines.filter((l) => l.days != null).map((l) => ({ ...l, days }))
     return periodLines(rent, days, 'draft').filter((l) => l.days != null)
@@ -101,9 +112,15 @@ export function InvoiceComposer({
   useEffect(() => {
     formRef.current?.scrollIntoView({ block: 'nearest' })
   }, [])
+  // Фокус — у бланк одразу, щоб Esc і Tab працювали без пошуку; після
+  // закриття — назад на кнопку, з якої бланк відкрили.
   useEffect(() => {
-    // Тільки на відкритті бланка: порожній рядок чекає на вибір послуги.
+    const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null
     if (free.length === 1 && !free[0].articleId) firstFreeRef.current?.focus()
+    else formRef.current?.querySelector<HTMLElement>('button[role="checkbox"], select, input, textarea')?.focus({ preventScroll: true })
+    return () => {
+      if (opener?.isConnected) opener.focus({ preventScroll: true })
+    }
   }, [])
 
   const vatPayer = orgOf(rent).vatPayer
@@ -166,6 +183,7 @@ export function InvoiceComposer({
       if (main.length) dispatch({ type: 'INVOICE_COMPOSE', kind: kindFor(rent, main, period), lines: main, period, newCharges })
       if (deposit.length) dispatch({ type: 'INVOICE_COMPOSE', kind: 'deposit', lines: deposit })
     }
+    if (beyondReturn && moveReturn) dispatch({ type: 'EXTEND', to: periodTo })
     onClose(true)
   }
 
@@ -189,7 +207,7 @@ export function InvoiceComposer({
         <h3 className="text-body font-semibold text-fg">
           {editing ? `Рахунок № ${editing.number ?? '—'}: правка` : 'Новий рахунок'}
         </h3>
-        <Proposal note="Рахунок виписується з рейлу на будь-якому етапі оренди. Склад обирає менеджер галочками; вільний рядок — як «+» у бланку 1С." />
+        <Proposal note="Рахунок виписується окремою дією на будь-якому етапі оренди. Склад обирає менеджер галочками; вільний рядок — як «+» у бланку 1С." />
         <button
           type="button"
           onClick={() => onClose(false)}
@@ -228,12 +246,23 @@ export function InvoiceComposer({
                   />
                   <span className="tabular-nums text-fg-2">{days > 0 ? daysWord(days) : 'дата раніша за початок'}</span>
                 </label>
+                {beyondReturn && (
+                  <label className="mt-1.5 flex items-center gap-1.5 text-label text-fg-2" data-testid="composer-move-return">
+                    <Checkbox checked={moveReturn} onCheckedChange={(v) => setMoveReturn(v === true)} aria-label="Перенести планове повернення" />
+                    перенести повернення з {fmtDay(rent.returnAt)} на {fmtDay(periodTo)}
+                    <Proposal note="Рахунок за доби після планового повернення пропонує одразу перенести повернення; галочку можна зняти." />
+                  </label>
+                )}
                 <ul className="mt-1.5 flex flex-col gap-1">
                   {rentRows.map((l) => (
                     <li key={l.id} className="text-label text-fg-2">
                       <span className="text-fg">{l.service}</span>
+                      {/* Два рядки завжди: довжина чисел не має перекидати рядок і штовхати «Сформувати». */}
                       <span className="block tabular-nums text-muted-fg">
-                        {l.qty} × {daysWord(l.days ?? 0)} × {formatMoney(l.priceNet)} без ПДВ = {formatMoney(lineGross(l))}
+                        {l.qty} × {daysWord(l.days ?? 0)} × {formatMoney(l.priceNet)} без ПДВ
+                      </span>
+                      <span className="block tabular-nums text-muted-fg">
+                        = {formatMoney(lineNet(l))} без ПДВ, {formatMoney(lineGross(l))} з ПДВ
                       </span>
                     </li>
                   ))}

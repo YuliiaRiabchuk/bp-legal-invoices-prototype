@@ -1,4 +1,4 @@
-import { addDays, daysIncl, fmtDay, lineGross, rentLines, unbilledCharges, vatFor } from './money'
+import { addDays, daysIncl, fmtDay, invoiceTotal, lineGross, paidOf, rentLines, unbilledCharges, vatFor } from './money'
 import type { Charge, Invoice, InvoiceKind, InvoiceLine, Rent } from '@/mock/types'
 
 /**
@@ -80,7 +80,37 @@ export function nextPeriod(rent: Rent): { from: string; to: string; due: boolean
   const until = rentBilledUntil(rent)
   const from = until ? addDays(until, 1) : rent.issueAt
   const left = until ? daysIncl(rent.today, until) - 1 : 0
-  return { from, to: rhythmEnd(from), due: rent.status !== 'CLOSED' && left < NEXT_PERIOD_HINT_DAYS }
+  // Хвіст до межі коротший за тиждень (з 31.10 по 31.10) — береться наступна межа.
+  let to = rhythmEnd(from)
+  if (daysIncl(from, to) < MIN_PERIOD_DAYS) to = rhythmEnd(addDays(to, 1))
+  return { from, to, due: rent.status !== 'CLOSED' && left < NEXT_PERIOD_HINT_DAYS }
+}
+
+/** Найкоротший період, який пропонує підказка (пропозиція). */
+export const MIN_PERIOD_DAYS = 7
+
+/**
+ * Чи можна зараз виписати рахунок вручну. До переходу в «Оплату» — ні:
+ * оренду і заставу сформує сам перехід (D1), і ручний рахунок на ті ж доби
+ * дав би два рахунки за одну оренду.
+ */
+export function invoiceBlocked(rent: Rent): string | null {
+  if (rent.status === 'DRAFT') return 'Перші рахунки — оренда і застава — сформуються самі на переході до оплати.'
+  return null
+}
+
+/**
+ * Підсумки окремо: оренда з послугами (з ПДВ) і застава (без ПДВ). Обліково
+ * вони ніколи не сумуються (§3).
+ */
+export function totalsSplit(rent: Rent) {
+  const sum = (deposit: boolean) => {
+    const inv = rent.invoices.filter((i) => !i.cancelled && (i.kind === 'deposit') === deposit)
+    const issued = inv.reduce((s, i) => s + invoiceTotal(i), 0)
+    const paid = inv.reduce((s, i) => s + Math.min(paidOf(rent, i), invoiceTotal(i)), 0)
+    return { issued: Math.round(issued * 100) / 100, paid: Math.round(paid * 100) / 100, count: inv.length }
+  }
+  return { main: sum(false), deposit: sum(true) }
 }
 
 /**

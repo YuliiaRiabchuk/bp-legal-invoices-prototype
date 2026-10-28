@@ -78,7 +78,19 @@ async function measure() {
       if (r.width === 0) continue
       // Координата вмісту — тільки для того, що прокручується. Дія в шапці
       // оренди (поза областю прокрутки) стоїть на місці, хоч би як крутили.
-      mains[el.getAttribute('data-main-action')] = Math.round(r.top + (box && box.contains(el) ? st : 0))
+      // Липке (шапка книги) міряється там, де воно стояло б без прилипання:
+      // прокрутка вмісту не робить із нього ні «зсуву», ні виграшу.
+      let top = r.top
+      for (let n = el; n && n !== box; n = n.parentElement) {
+        if (getComputedStyle(n).position !== 'sticky') continue
+        // Липкі тут — перший рядок свого батька (шапка книги, рейл у сітці):
+        // без прилипання вони стоять від верху батька.
+        const pcs = getComputedStyle(n.parentElement)
+        const natural = n.parentElement.getBoundingClientRect().top + parseFloat(pcs.borderTopWidth) + parseFloat(pcs.paddingTop)
+        top = r.top - n.getBoundingClientRect().top + natural
+        break
+      }
+      mains[el.getAttribute('data-main-action')] = Math.round(top + (box && box.contains(el) ? st : 0))
     }
     const due = [...document.querySelectorAll('[data-amount-due]')].filter(vis).map((e) => e.getAttribute('data-amount-due'))
     const links = [...document.querySelectorAll('[data-pay-invoice]')].filter(vis).map((e) => e.getAttribute('data-pay-invoice'))
@@ -337,10 +349,10 @@ const DRIVERS = {
       await run.click('[data-testid="composer-submit"]')
       return true
     },
+    /** Сцена 3: підказка «Не виставлено з 01.11» над реєстром. */
     async period(run) {
       await run.click('[data-testid="tab-Рахунки"]')
-      await run.click('[data-testid="registry-row"][data-number="1120"] [data-testid="invoice-menu"]')
-      await run.click('[data-testid="registry-next-period"]')
+      await run.click('[data-testid="registry-next-period-hint"]')
       await run.click('[data-testid="composer-submit"]')
       return true
     },

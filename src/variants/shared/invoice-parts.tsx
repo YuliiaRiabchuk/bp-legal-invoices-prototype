@@ -64,7 +64,7 @@ export function FailedNotice({ inv, className }: { inv: Invoice; className?: str
  * послуги, видаткова під реалізацію (F10). Платіжка несе `data-pay-invoice` —
  * за ним прогін рахує відповідь сцени 6.
  */
-export function InvoiceTrail({ rent, inv, className }: { rent: Rent; inv: Invoice; className?: string }) {
+export function InvoiceTrail({ rent, inv, className, signed }: { rent: Rent; inv: Invoice; className?: string; /** Платіжка зі знаком «−», як у книзі: гроші зменшують борг. */ signed?: boolean }) {
   const pays = paymentsOf(rent, inv)
   const docs = rent.docs.filter((d) => d.invoiceId === inv.id)
   if (pays.length === 0 && docs.length === 0) return null
@@ -76,7 +76,7 @@ export function InvoiceTrail({ rent, inv, className }: { rent: Rent; inv: Invoic
           <span className="min-w-0 flex-1 text-fg-2">
             Платіжне доручення № {p.number}, {fmtDay(p.date)}
           </span>
-          <span className="shrink-0 tabular-nums text-fg">{formatMoney(p.amount)}</span>
+          <span className="shrink-0 tabular-nums text-fg">{formatMoney(signed ? -p.amount : p.amount)}</span>
         </li>
       ))}
       {docs.map((d) => (
