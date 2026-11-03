@@ -1,6 +1,7 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { CalendarClock, ChevronDown, Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { useCard } from '@/features/rent/card-context'
 import { coveredUntil, dailyGross, daysIncl, fmtDate, fmtDay, invoiceState } from '@/domain/money'
 import { byFreshness, invoiceBlocked, lastRentInvoice, nextPeriod, openCharges, rentBilledUntil } from '@/domain/invoicing'
 import { formatMoney } from '@/lib/money'
@@ -13,6 +14,7 @@ import { ChargeForm } from '../shared/ChargeForm'
 import { InvoiceComposer, type ComposerSeed } from '../shared/InvoiceComposer'
 import { OpenCharges } from '../shared/OpenCharges'
 import { InvoiceCardB } from './InvoiceCardB'
+import { ProdRail } from '../shared/ProdRail'
 
 /**
  * Варіант B — рахунки в рейлі (`docs/shape.md` §4.B).
@@ -27,12 +29,20 @@ import { InvoiceCardB } from './InvoiceCardB'
  */
 export function RailB() {
   const { rent } = useStore()
+  const { invoiceErrand, setInvoiceErrand } = useCard()
   const [panel, setPanel] = useState<ComposerSeed | { mode: 'charge' } | null>(null)
   const nonce = useRef(0)
   const open = (p: Omit<Extract<ComposerSeed, { mode: 'new' }>, 'nonce' | 'mode'> | { invoiceId: string }) => {
     nonce.current++
     setPanel('invoiceId' in p ? { mode: 'edit', invoiceId: p.invoiceId, nonce: nonce.current } : { mode: 'new', ...p, nonce: nonce.current })
   }
+
+  // Доручення з кроку («У рахунок» на нарахуванні) — бланк тут же.
+  useEffect(() => {
+    if (!invoiceErrand) return
+    open(invoiceErrand)
+    setInvoiceErrand(null)
+  }, [invoiceErrand, setInvoiceErrand])
 
   const invoices = [...rent.invoices].sort(byFreshness)
   const live = invoices.filter((i) => !i.cancelled)
@@ -42,7 +52,7 @@ export function RailB() {
   const blocked = invoiceBlocked(rent)
 
   return (
-    <div className="flex flex-col gap-3" data-testid="rail-b">
+    <ProdRail hideSettlement top={<>
       {rent.status !== 'CLOSED' && rent.status !== 'DRAFT' && <CoverageB rent={rent} onInvoiceTo={(to) => open({ via: 'period', to })} />}
       <section className="overflow-hidden rounded-lg border border-border bg-card" aria-label="Рахунки оренди" data-testid="rail-invoices">
         <header className="flex items-center gap-2 px-3 py-2.5">
@@ -123,8 +133,7 @@ export function RailB() {
           <Stack rent={rent} invoices={invoices} onEdit={(inv) => open({ invoiceId: inv.id })} />
         )}
       </section>
-
-    </div>
+    </>} />
   )
 }
 
@@ -176,7 +185,7 @@ function Stack({ rent, invoices, onEdit }: { rent: Rent; invoices: Invoice[]; on
  * Тому замість голого «перенести повернення» блок пропонує виставити рахунок
  * на доби, які ці гроші покривають, — повернення переноситься разом із ним.
  */
-function CoverageB({ rent, onInvoiceTo }: { rent: Rent; onInvoiceTo: (to: string) => void }) {
+export function CoverageB({ rent, onInvoiceTo }: { rent: Rent; onInvoiceTo: (to: string) => void }) {
   const c = coveredUntil(rent)
   const rate = dailyGross(rent)
   const has = c.money > 0 && c.days > 0

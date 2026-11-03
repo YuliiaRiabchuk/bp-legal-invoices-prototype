@@ -1,63 +1,74 @@
-import type { Rent, StageKey } from '@/mock/types'
+import { FileText } from 'lucide-react'
+import { StageRail } from '@/features/rent/StageRail'
 import { useCard } from '@/features/rent/card-context'
+import { invoiceState } from '@/domain/money'
+import type { StageKey } from '@/mock/types'
 import { useStore } from '@/state/store'
-import { ChargesLedger, PaymentsLedger } from '../shared/Ledger'
+import { CoverageB } from '../b/RailB'
+import { InvoiceBook } from '../shared/InvoiceBook'
 import { Proposal } from '../shared/Proposal'
-import { DraftStage, OutOfScope, PaymentStage, Positions, Section, ToClosing } from '../shared/stage-blocks'
+import { ProdPage } from '../shared/ProdPage'
+import { ProdRail } from '../shared/ProdRail'
+import { Section } from '../shared/stage-blocks'
 
 /**
- * Ліва колонка варіанта C. Рахунки — на стрічці над кроком; крок тримає
- * обладнання, нарахування з виходом на стрічку («У рахунок») і перехід далі.
+ * Варіант C — вузол «Рахунки на оплату» на хребті етапу. Сторінка проду
+ * лишається: у вертикальний рейл вузлів між «Нарахуваннями» і «Прийомом
+ * коштів» вставлено ще один вузол, де живуть усі рахунки, кожен зі своїми
+ * платіжками, і «+ Рахунок». На «В роботі» той самий блок стоїть над
+ * нарахуваннями.
+ *
+ * Продовження (б): кнопки немає, блок «до якої дати вистачить» стоїть там
+ * само, де рахунки.
  */
 export function RentTabC({ stage }: { stage: StageKey }) {
   const { rent } = useStore()
-  switch (stage) {
-    case 'draft':
-      return <DraftStage rent={rent} where="на стрічці вгорі" />
-    case 'payment':
-      return (
-        <PaymentStage
-          rent={rent}
-          where="на стрічці вгорі, в деталях обраного рахунку"
-          whereNote="Рахунки — на стрічці над кроком на всіх етапах; крок оплати їх не дублює."
-          showPayments={false}
-        />
-      )
-    case 'active':
-      return <ActiveC rent={rent} />
-    case 'closing':
-      return rent.status === 'CLOSED' ? (
-        <div className="flex flex-col gap-4">
-          <Positions rent={rent} footer={<p className="text-label text-muted-fg">Оренду закрито. Рахунок відкривається з мітки на стрічці, стан оренди від цього не змінюється.</p>} />
-          <Section title="Надходження">
-            <PaymentsLedger rent={rent} />
-          </Section>
-        </div>
-      ) : (
-        <OutOfScope text="Повернення і закриття поза скоупом прототипу. Рахунки — на стрічці вгорі." />
-      )
-    default:
-      return <OutOfScope text="Видача поза скоупом прототипу. Рахунки — на стрічці вгорі." />
-  }
-}
-
-function ActiveC({ rent }: { rent: Rent }) {
   const { setInvoiceErrand } = useCard()
+  const live = rent.invoices.filter((i) => !i.cancelled)
+  const waiting = live.filter((i) => !['paid', 'overpaid'].includes(invoiceState(rent, i).kind)).length
+  const failed = live.some((i) => i.numberState === 'failed')
+  const node = (
+    <StageRail.Step
+      key="invoices"
+      tone={failed ? 'attention' : waiting ? 'partial' : live.length ? 'done' : 'idle'}
+      icon={FileText}
+      label="Рахунки на оплату"
+      heading
+      headingStatus={live.length ? (waiting ? `${waiting} чекає` : 'усі оплачені') : undefined}
+    >
+      <InvoiceBook embedded />
+    </StageRail.Step>
+  )
   return (
-    <div className="flex flex-col gap-4" data-step="active">
-      <Section title="Нарахування" testId="charges-section" aside={<Proposal note="Реєстр нарахувань з місцем кожного; невиставлене — у рахунок на стрічці або готівкою." />}>
-        <ChargesLedger rent={rent} onInvoice={(id) => setInvoiceErrand({ via: 'charge', chargeId: id })} />
-      </Section>
-      <Positions
-        rent={rent}
-        footer={
+    <ProdPage
+      stage={stage}
+      slots={{
+        where: 'у вузлі «Рахунки на оплату»',
+        invoicesNode: node,
+        activeBlock: (
+          <>
+            <CoverageB rent={rent} onInvoiceTo={(to) => setInvoiceErrand({ via: 'period', to })} />
+            <Section title="Рахунки на оплату" aside={<Proposal note="Той самий вузол, що на кроці «Оплата»: рахунки не ховаються після видачі." />} testId="invoices-section">
+              <InvoiceBook embedded />
+            </Section>
+          </>
+        ),
+        closedBlock: (
+          <Section title="Рахунки на оплату" testId="invoices-section">
+            <InvoiceBook embedded />
+          </Section>
+        ),
+        onChargeInvoice: (id) => setInvoiceErrand({ via: 'charge', chargeId: id }),
+        equipmentFooter: (
           <p className="flex flex-wrap items-center gap-1.5 text-label text-muted-fg">
-            Продовження — рахунком з прогалини на стрічці; «вистачить до» стоїть на тій самій осі.
-            <Proposal note="Продовження (б): кнопки «Продовжити оренду» немає." />
+            Продовжити оренду — рахунком на новий період у блоці нижче; кнопки продовження немає.
+            <Proposal note="Продовження (б): система показує «грошей вистачить до <дата>», а рахунок на нові доби виписується з цієї дати." />
           </p>
-        }
-      />
-      <ToClosing />
-    </div>
+        ),
+        closedNote: 'Оренду закрито. Рахунок відкривається і друкується зі свого рядка в блоці «Рахунки на оплату», стан оренди не змінюється.',
+      }}
+    />
   )
 }
+
+export const RailC = ProdRail

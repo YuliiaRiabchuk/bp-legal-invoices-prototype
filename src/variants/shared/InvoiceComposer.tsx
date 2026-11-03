@@ -33,6 +33,7 @@ export type ComposerSeed =
       mode: 'new'
       via: 'button' | 'period' | 'charge'
       chargeId?: string
+      chargeIds?: string[]
       /** «По яке число» замість межі ритму — напр. дата «вистачить до». */
       to?: string
       nonce: number
@@ -96,7 +97,7 @@ export function InvoiceComposer({
   const [picked, setPicked] = useState<Set<string>>(() => {
     if (seed.mode === 'edit') return new Set()
     // «Додати й виставити»: id нового нарахування ще не відомий — беремо останнє.
-    if (seed.via === 'charge') return new Set([seed.chargeId ?? charges.at(-1)?.id].filter(Boolean) as string[])
+    if (seed.via === 'charge') return new Set((seed.chargeIds ?? [seed.chargeId ?? charges.at(-1)?.id]).filter(Boolean) as string[])
     if (seed.via === 'button') return new Set(charges.map((c) => c.id))
     return new Set()
   })

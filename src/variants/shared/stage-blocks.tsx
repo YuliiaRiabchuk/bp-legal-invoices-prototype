@@ -40,7 +40,7 @@ export function Section({ title, aside, children, testId }: { title: string; asi
 }
 
 /** Обладнання з цінами: дві колонки, без ПДВ і з ПДВ (C8). */
-export function Positions({ rent, footer }: { rent: Rent; footer?: ReactNode }) {
+export function Positions({ rent, footer, title = 'Обладнання' }: { rent: Rent; footer?: ReactNode; title?: string }) {
   const rate = vatFor(rent, true)
   const total = daysIncl(rent.issueAt, rent.returnAt)
   const day = Math.min(total, Math.max(1, daysIncl(rent.issueAt, rent.today)))
@@ -48,7 +48,7 @@ export function Positions({ rent, footer }: { rent: Rent; footer?: ReactNode }) 
   return (
     <section className="overflow-hidden rounded-lg border border-border bg-card" data-testid="positions">
       <header className="flex items-center justify-between gap-3 border-b border-border px-4 py-2.5">
-        <h2 className="text-title font-semibold">Обладнання</h2>
+        <h2 className="text-title font-semibold">{title}</h2>
         <span className="text-label tabular-nums text-muted-fg">
           {fmtDate(rent.issueAt)} — {fmtDate(rent.returnAt)}, {started ? `${day}-а доба з ${total}` : daysWord(total)}
         </span>

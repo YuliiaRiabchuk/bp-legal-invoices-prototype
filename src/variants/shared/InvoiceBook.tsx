@@ -9,12 +9,12 @@ import { cn } from '@/lib/utils'
 import { ORG_BY_ID } from '@/mock/orgs'
 import type { Invoice, Rent } from '@/mock/types'
 import { useStore } from '@/state/store'
-import { ChargeForm } from '../shared/ChargeForm'
-import { InvoiceComposer, type ComposerSeed } from '../shared/InvoiceComposer'
-import { OpenCharges } from '../shared/OpenCharges'
-import { Proposal } from '../shared/Proposal'
-import { statusView } from '../shared/invoice-status'
-import { CancelConfirm, CancelledLine, FailedNotice, InvoiceMenu, InvoiceTrail, NumberSlot, OverpayNote, PrintIcons, StatusBadge } from '../shared/invoice-parts'
+import { ChargeForm } from './ChargeForm'
+import { InvoiceComposer, type ComposerSeed } from './InvoiceComposer'
+import { OpenCharges } from './OpenCharges'
+import { Proposal } from './Proposal'
+import { statusView } from './invoice-status'
+import { CancelConfirm, CancelledLine, FailedNotice, InvoiceMenu, InvoiceTrail, NumberSlot, OverpayNote, PrintIcons, StatusBadge } from './invoice-parts'
 
 /**
  * Варіант D — книга розрахунків (`docs/shape.md` §4.D).
@@ -29,7 +29,7 @@ import { CancelConfirm, CancelledLine, FailedNotice, InvoiceMenu, InvoiceTrail, 
  */
 type Panel = ComposerSeed | { mode: 'charge'; nonce: number }
 
-export function BookD() {
+export function InvoiceBook({ embedded = false }: { /** У вузлі кроку нарахування вже є вище; тут тільки рахунки. */ embedded?: boolean }) {
   const { rent } = useStore()
   const { invoiceErrand, setInvoiceErrand } = useCard()
   const [panel, setPanel] = useState<Panel | null>(null)
@@ -53,6 +53,8 @@ export function BookD() {
   const blocked = invoiceBlocked(rent)
   // Що чекає — номерами в шапці: книга лишається хронологією, а відповідь «чого чекаємо» видно без прокрутки.
   const waiting = invoices.filter((i) => !['paid', 'cancelled', 'overpaid'].includes(invoiceState(rent, i).kind))
+  // У вузлі кроку свіжі зверху: що чекає, видно без прокрутки, а підказка періоду стоїть над найсвіжішим рахунком оренди.
+  const ordered = embedded ? [...invoices].reverse() : invoices
   const periodOpen = panel?.mode === 'new' && panel.via === 'period'
   const topPanel = panel && !periodOpen ? panel : null
 
@@ -82,13 +84,15 @@ export function BookD() {
       {/* Шапка липка: на десяти рахунках «+ Рахунок» і «чекають» не прокручуються геть. */}
       <header className="sticky top-0 z-10 rounded-t-lg border-b border-border bg-card px-4 py-2.5">
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-          <h2 className="text-title font-semibold text-fg">Рахунки і оплати</h2>
-          <Proposal note="Книга замість блоку способів оплати: рахунок і під ним його платіжки, АВР і видаткова — як дерево документів 1С." />
+          {!embedded && <h2 className="text-title font-semibold text-fg">Рахунки і оплати</h2>}
+          {!embedded && <Proposal note="Рахунок і під ним його платіжки, АВР і видаткова — як дерево документів 1С." />}
           <div className="ml-auto flex items-center gap-1.5">
-            <Button size="sm" variant="secondary" onClick={() => (panel?.mode === 'charge' ? setPanel(null) : open('charge'))} data-testid="book-add-charge">
-              <Plus aria-hidden />
-              Нарахування
-            </Button>
+            {!embedded && (
+              <Button size="sm" variant="secondary" onClick={() => (panel?.mode === 'charge' ? setPanel(null) : open('charge'))} data-testid="book-add-charge">
+                <Plus aria-hidden />
+                Нарахування
+              </Button>
+            )}
             <Button
               size="sm"
               variant={topPanel && topPanel.mode !== 'charge' ? 'secondary' : 'default'}
@@ -133,7 +137,7 @@ export function BookD() {
         )}
       </header>
 
-      {topPanel?.mode === 'charge' && (
+      {!embedded && topPanel?.mode === 'charge' && (
         <div className="border-b border-border bg-muted/50 px-4 py-3">
           <ChargeForm onClose={(thenInvoice) => (thenInvoice ? open({ via: 'charge' }) : setPanel(null))} className="max-w-md rounded-lg border border-border bg-card" />
         </div>
@@ -150,19 +154,20 @@ export function BookD() {
         </p>
       ) : (
         <ul>
-          {invoices.map((inv) => (
+          {ordered.map((inv) => (
             <Fragment key={inv.id}>
+              {embedded && inv.id === lastRent?.id && periodRow}
               <BookEntry rent={rent} inv={inv} onEdit={() => open({ invoiceId: inv.id })} />
-              {inv.id === lastRent?.id && periodRow}
+              {!embedded && inv.id === lastRent?.id && periodRow}
             </Fragment>
           ))}
         </ul>
       )}
 
-      {charges.length > 0 && (
+      {!embedded && charges.length > 0 && (
         <OpenCharges rent={rent} charges={charges} onInvoice={(id) => open({ via: 'charge', chargeId: id })} className="max-w-xl border-t border-border px-4 py-2.5" />
       )}
-      {rent.cashOrders.length > 0 && (
+      {!embedded && rent.cashOrders.length > 0 && (
         <ul className="border-t border-border px-4 py-2" aria-label="Готівка від юрособи">
           {rent.cashOrders.map((c) => (
             <li key={c.id} className="flex items-baseline gap-2 text-label text-fg-2" data-testid="cash-order">

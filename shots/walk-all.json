@@ -183,8 +183,11 @@
       "label": "1 Старт",
       "clicks": 0,
       "mainShift": 0,
-      "surfaces": 0,
-      "worst": [],
+      "surfaces": 2,
+      "worst": [
+        "intake",
+        "rail"
+      ],
       "hscroll": false,
       "offscreen": 0,
       "invoiceClicks": 0
@@ -197,7 +200,7 @@
       "mainShift": 0,
       "surfaces": 1,
       "worst": [
-        "registry"
+        "rail"
       ],
       "hscroll": false,
       "offscreen": 0,
@@ -211,7 +214,7 @@
       "mainShift": 0,
       "surfaces": 1,
       "worst": [
-        "registry"
+        "rail"
       ],
       "hscroll": false,
       "offscreen": 0,
@@ -223,8 +226,10 @@
       "label": "4а Продовження",
       "clicks": 3,
       "mainShift": 0,
-      "surfaces": 0,
-      "worst": [],
+      "surfaces": 1,
+      "worst": [
+        "rail"
+      ],
       "hscroll": false,
       "offscreen": 0,
       "invoiceClicks": 3
@@ -235,8 +240,10 @@
       "label": "4б Продовження: оплачено",
       "clicks": 0,
       "mainShift": 0,
-      "surfaces": 0,
-      "worst": [],
+      "surfaces": 1,
+      "worst": [
+        "rail"
+      ],
       "hscroll": false,
       "offscreen": 0,
       "covered": null
@@ -247,8 +254,10 @@
       "label": "5 Кілька оплат",
       "clicks": 0,
       "mainShift": 0,
-      "surfaces": 0,
-      "worst": [],
+      "surfaces": 1,
+      "worst": [
+        "rail"
+      ],
       "hscroll": false,
       "offscreen": 0
     },
@@ -260,7 +269,7 @@
       "mainShift": 0,
       "surfaces": 1,
       "worst": [
-        "registry"
+        "rail"
       ],
       "hscroll": false,
       "offscreen": 0,
@@ -274,7 +283,7 @@
       "mainShift": 0,
       "surfaces": 1,
       "worst": [
-        "registry"
+        "rail"
       ],
       "hscroll": false,
       "offscreen": 0
@@ -285,8 +294,11 @@
       "label": "8 1С не відповіла",
       "clicks": 0,
       "mainShift": 0,
-      "surfaces": 0,
-      "worst": [],
+      "surfaces": 2,
+      "worst": [
+        "intake",
+        "rail"
+      ],
       "hscroll": false,
       "offscreen": 0
     },
@@ -298,7 +310,7 @@
       "mainShift": 0,
       "surfaces": 1,
       "worst": [
-        "registry"
+        "rail"
       ],
       "hscroll": false,
       "offscreen": 0
@@ -311,7 +323,7 @@
       "mainShift": 0,
       "surfaces": 1,
       "worst": [
-        "registry"
+        "rail"
       ],
       "hscroll": false,
       "offscreen": 0,
@@ -323,8 +335,10 @@
       "label": "11 Готівка від ЮЛ",
       "clicks": 2,
       "mainShift": 0,
-      "surfaces": 0,
-      "worst": [],
+      "surfaces": 1,
+      "worst": [
+        "rail"
+      ],
       "hscroll": false,
       "offscreen": 0,
       "cashClicks": 2
@@ -335,8 +349,9 @@
       "label": "1 Старт",
       "clicks": 0,
       "mainShift": 0,
-      "surfaces": 1,
+      "surfaces": 2,
       "worst": [
+        "intake",
         "rail-card"
       ],
       "hscroll": false,
@@ -443,8 +458,9 @@
       "label": "8 1С не відповіла",
       "clicks": 0,
       "mainShift": 0,
-      "surfaces": 1,
+      "surfaces": 2,
       "worst": [
+        "intake",
         "rail-card"
       ],
       "hscroll": false,
@@ -491,9 +507,11 @@
       "label": "1 Старт",
       "clicks": 0,
       "mainShift": 0,
-      "surfaces": 1,
+      "surfaces": 3,
       "worst": [
-        "strip-detail"
+        "book",
+        "intake",
+        "rail"
       ],
       "hscroll": false,
       "offscreen": 0,
@@ -505,9 +523,10 @@
       "label": "2 Доставка після видачі",
       "clicks": 4,
       "mainShift": 0,
-      "surfaces": 1,
+      "surfaces": 2,
       "worst": [
-        "strip-detail"
+        "book",
+        "rail"
       ],
       "hscroll": false,
       "offscreen": 0,
@@ -519,9 +538,10 @@
       "label": "3 Новий період",
       "clicks": 2,
       "mainShift": 0,
-      "surfaces": 1,
+      "surfaces": 2,
       "worst": [
-        "strip-detail"
+        "book",
+        "rail"
       ],
       "hscroll": false,
       "offscreen": 0,
@@ -533,9 +553,10 @@
       "label": "4а Продовження",
       "clicks": 3,
       "mainShift": 0,
-      "surfaces": 1,
+      "surfaces": 2,
       "worst": [
-        "strip-detail"
+        "book",
+        "rail"
       ],
       "hscroll": false,
       "offscreen": 0,
@@ -547,9 +568,10 @@
       "label": "4б Продовження: оплачено",
       "clicks": 0,
       "mainShift": 0,
-      "surfaces": 1,
+      "surfaces": 2,
       "worst": [
-        "strip-detail"
+        "book",
+        "rail"
       ],
       "hscroll": false,
       "offscreen": 0,
@@ -561,9 +583,10 @@
       "label": "5 Кілька оплат",
       "clicks": 0,
       "mainShift": 0,
-      "surfaces": 1,
+      "surfaces": 2,
       "worst": [
-        "strip-detail"
+        "book",
+        "rail"
       ],
       "hscroll": false,
       "offscreen": 0
@@ -574,9 +597,10 @@
       "label": "6 П'ять рахунків",
       "clicks": 0,
       "mainShift": 0,
-      "surfaces": 1,
+      "surfaces": 2,
       "worst": [
-        "strip-detail"
+        "book",
+        "rail"
       ],
       "hscroll": false,
       "offscreen": 0,
@@ -586,14 +610,15 @@
       "variant": "C",
       "scene": "cancel",
       "label": "7 Скасування",
-      "clicks": 4,
+      "clicks": 3,
       "mainShift": 0,
-      "surfaces": 1,
+      "surfaces": 2,
       "worst": [
-        "strip-detail"
+        "book",
+        "rail"
       ],
       "hscroll": false,
-      "offscreen": 0
+      "offscreen": 1
     },
     {
       "variant": "C",
@@ -601,9 +626,10 @@
       "label": "8 1С не відповіла",
       "clicks": 0,
       "mainShift": 0,
-      "surfaces": 1,
+      "surfaces": 2,
       "worst": [
-        "strip-detail"
+        "book",
+        "rail"
       ],
       "hscroll": false,
       "offscreen": 0
@@ -612,11 +638,12 @@
       "variant": "C",
       "scene": "docs",
       "label": "9 Документи під рахунком",
-      "clicks": 1,
+      "clicks": 0,
       "mainShift": 0,
-      "surfaces": 1,
+      "surfaces": 2,
       "worst": [
-        "strip-detail"
+        "book",
+        "rail"
       ],
       "hscroll": false,
       "offscreen": 0
@@ -625,15 +652,16 @@
       "variant": "C",
       "scene": "closed",
       "label": "10 Рахунок як документ",
-      "clicks": 2,
+      "clicks": 1,
       "mainShift": 0,
-      "surfaces": 1,
+      "surfaces": 2,
       "worst": [
-        "strip-detail"
+        "book",
+        "rail"
       ],
       "hscroll": false,
       "offscreen": 0,
-      "printClicks": 2
+      "printClicks": 1
     },
     {
       "variant": "C",
@@ -641,12 +669,13 @@
       "label": "11 Готівка від ЮЛ",
       "clicks": 2,
       "mainShift": 0,
-      "surfaces": 1,
+      "surfaces": 2,
       "worst": [
-        "strip-detail"
+        "book",
+        "rail"
       ],
       "hscroll": false,
-      "offscreen": 0,
+      "offscreen": 1,
       "cashClicks": 2
     },
     {
@@ -655,9 +684,10 @@
       "label": "1 Старт",
       "clicks": 0,
       "mainShift": 0,
-      "surfaces": 1,
+      "surfaces": 2,
       "worst": [
-        "book"
+        "intake",
+        "rail"
       ],
       "hscroll": false,
       "offscreen": 0,
@@ -667,29 +697,29 @@
       "variant": "D",
       "scene": "delivery",
       "label": "2 Доставка після видачі",
-      "clicks": 4,
+      "clicks": 5,
       "mainShift": 0,
       "surfaces": 1,
       "worst": [
-        "book"
+        "rail"
       ],
       "hscroll": false,
       "offscreen": 0,
-      "invoiceClicks": 4
+      "invoiceClicks": 5
     },
     {
       "variant": "D",
       "scene": "period",
       "label": "3 Новий період",
-      "clicks": 2,
+      "clicks": 3,
       "mainShift": 0,
       "surfaces": 1,
       "worst": [
-        "book"
+        "rail"
       ],
       "hscroll": false,
       "offscreen": 0,
-      "invoiceClicks": 2
+      "invoiceClicks": 3
     },
     {
       "variant": "D",
@@ -699,7 +729,7 @@
       "mainShift": 0,
       "surfaces": 1,
       "worst": [
-        "book"
+        "rail"
       ],
       "hscroll": false,
       "offscreen": 0,
@@ -713,7 +743,7 @@
       "mainShift": 0,
       "surfaces": 1,
       "worst": [
-        "book"
+        "rail"
       ],
       "hscroll": false,
       "offscreen": 0,
@@ -727,7 +757,7 @@
       "mainShift": 0,
       "surfaces": 1,
       "worst": [
-        "book"
+        "rail"
       ],
       "hscroll": false,
       "offscreen": 0
@@ -736,25 +766,25 @@
       "variant": "D",
       "scene": "five",
       "label": "6 П'ять рахунків",
-      "clicks": 0,
+      "clicks": 1,
       "mainShift": 0,
       "surfaces": 1,
       "worst": [
-        "book"
+        "rail"
       ],
       "hscroll": false,
       "offscreen": 0,
-      "answerClicks": 0
+      "answerClicks": 1
     },
     {
       "variant": "D",
       "scene": "cancel",
       "label": "7 Скасування",
-      "clicks": 3,
+      "clicks": 4,
       "mainShift": 0,
       "surfaces": 1,
       "worst": [
-        "book"
+        "rail"
       ],
       "hscroll": false,
       "offscreen": 0
@@ -765,9 +795,10 @@
       "label": "8 1С не відповіла",
       "clicks": 0,
       "mainShift": 0,
-      "surfaces": 1,
+      "surfaces": 2,
       "worst": [
-        "book"
+        "intake",
+        "rail"
       ],
       "hscroll": false,
       "offscreen": 0
@@ -776,11 +807,11 @@
       "variant": "D",
       "scene": "docs",
       "label": "9 Документи під рахунком",
-      "clicks": 0,
+      "clicks": 1,
       "mainShift": 0,
       "surfaces": 1,
       "worst": [
-        "book"
+        "rail"
       ],
       "hscroll": false,
       "offscreen": 0
@@ -789,15 +820,15 @@
       "variant": "D",
       "scene": "closed",
       "label": "10 Рахунок як документ",
-      "clicks": 1,
+      "clicks": 2,
       "mainShift": 0,
       "surfaces": 1,
       "worst": [
-        "book"
+        "rail"
       ],
       "hscroll": false,
       "offscreen": 0,
-      "printClicks": 1
+      "printClicks": 2
     },
     {
       "variant": "D",
@@ -807,7 +838,7 @@
       "mainShift": 0,
       "surfaces": 1,
       "worst": [
-        "book"
+        "rail"
       ],
       "hscroll": false,
       "offscreen": 0,

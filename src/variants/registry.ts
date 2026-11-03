@@ -7,12 +7,12 @@ import { InvoicesTabA } from './a/InvoicesTabA'
 import { RailA, RentTabA } from './a/RentTabA'
 import { RailB } from './b/RailB'
 import { RentTabB } from './b/RentTabB'
-import { RentTabC } from './c/RentTabC'
-import { StripC } from './c/StripC'
+import { RailC, RentTabC } from './c/RentTabC'
+import { DocumentsD } from './d/DocumentsD'
 import { RentTabD } from './d/RentTabD'
 import { DocumentsTree } from './shared/DocumentsTree'
 import { ExtendAction } from './shared/ExtendAction'
-import { SummaryRail } from './shared/SummaryRail'
+import { ProdRail } from './shared/ProdRail'
 
 /**
  * Варіант = уся композиція картки: таби, вміст вкладки «Оренда» на кожному
@@ -45,6 +45,6 @@ export const VARIANT_UI: Record<string, VariantUi> = {
     HeaderAction: ExtendAction,
   },
   B: { tabs: PROD_TABS, RentTab: RentTabB, Rail: RailB, Tabs: { Документи: DocumentsTree }, wideRail: true },
-  C: { tabs: PROD_TABS, RentTab: RentTabC, Rail: SummaryRail, Tabs: { Документи: DocumentsTree }, Above: StripC },
-  D: { tabs: PROD_TABS, RentTab: RentTabD, Rail: SummaryRail, Tabs: { Документи: DocumentsTree }, HeaderAction: ExtendAction },
+  C: { tabs: PROD_TABS, RentTab: RentTabC, Rail: RailC, Tabs: { Документи: DocumentsTree } },
+  D: { tabs: PROD_TABS, RentTab: RentTabD, Rail: ProdRail, Tabs: { Документи: DocumentsD }, HeaderAction: ExtendAction },
 }

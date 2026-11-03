@@ -1,66 +1,49 @@
-import type { Rent, StageKey } from '@/mock/types'
-import { useStore } from '@/state/store'
+import { ArrowRight } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { useCard } from '@/features/rent/card-context'
+import type { StageKey } from '@/mock/types'
 import { Proposal } from '../shared/Proposal'
-import { DraftStage, HandoverControls, OutOfScope, Positions, ToClosing } from '../shared/stage-blocks'
-import { BookD } from './BookD'
+import { ProdPage } from '../shared/ProdPage'
 
 /**
- * Вкладка «Оренда» варіанта D: книга розрахунків на кожному етапі після
- * оформлення. Книга і є крок «Оплата» — окремого блоку способів немає.
+ * Варіант D — рахунок живе в «Документах». Сторінка кроку — сторінка проду;
+ * у таблиці «Нарахування та знижки» з'явились галочки: менеджер сам обирає,
+ * що піде в новий рахунок, і виписує його одразу звідти. Усі рахунки — у
+ * вкладці «Документи» деревом, як в 1С: рахунок, під ним платіжки, АВР і
+ * видаткова.
+ *
+ * Продовження (а): кнопка «Продовжити оренду» в шапці.
  */
 export function RentTabD({ stage }: { stage: StageKey }) {
-  const { rent } = useStore()
-  switch (stage) {
-    case 'draft':
-      return (
-        <div className="flex flex-col gap-4">
-          <DraftStage rent={rent} where="у книзі «Рахунки і оплати»" />
-          <BookD />
-        </div>
-      )
-    case 'payment':
-      return (
-        <div className="flex flex-col gap-4" data-step="payment">
-          <BookD />
-          <section className="rounded-lg border border-border bg-card px-4 py-3" data-testid="handover-block">
-            <h2 className="mb-2 text-title font-semibold text-fg">Видача</h2>
-            <HandoverControls rent={rent} />
-          </section>
-        </div>
-      )
-    case 'active':
-      return <ActiveD rent={rent} />
-    case 'closing':
-      return (
-        <div className="flex flex-col gap-4">
-          {rent.status !== 'CLOSED' && <OutOfScope text="Повернення і закриття поза скоупом прототипу." />}
-          <BookD />
-        </div>
-      )
-    default:
-      return (
-        <div className="flex flex-col gap-4">
-          <OutOfScope text="Видача поза скоупом прототипу." />
-          <BookD />
-        </div>
-      )
+  const { setTab, setInvoiceErrand } = useCard()
+  const toDocs = (e: Parameters<typeof setInvoiceErrand>[0]) => {
+    setInvoiceErrand(e)
+    setTab('Документи')
   }
-}
-
-function ActiveD({ rent }: { rent: Rent }) {
   return (
-    <div className="flex flex-col gap-4" data-step="active">
-      <BookD />
-      <Positions
-        rent={rent}
-        footer={
+    <ProdPage
+      stage={stage}
+      slots={{
+        where: 'у вкладці «Документи»',
+        cardsFooter: (
+          <div className="mt-2 flex items-center gap-2" data-testid="cards-footer">
+            <p className="min-w-0 flex-1 text-label text-muted-fg">Усі рахунки — у «Документах», з платіжками, АВР і видатковими під кожним.</p>
+            <Button size="sm" variant="secondary" onClick={() => setTab('Документи')} data-testid="to-documents">
+              Документи
+              <ArrowRight aria-hidden />
+            </Button>
+          </div>
+        ),
+        selectable: { onInvoice: (ids) => toDocs({ via: 'charge', chargeIds: ids }) },
+        onChargeInvoice: (id) => toDocs({ via: 'charge', chargeId: id }),
+        equipmentFooter: (
           <p className="flex flex-wrap items-center gap-1.5 text-label text-muted-fg">
-            Продовження — кнопкою «Продовжити оренду» в шапці: вона одразу виписує рахунок на нові доби.
+            Продовжити оренду — кнопка в шапці картки: вона одразу виписує рахунок на нові доби.
             <Proposal note="Продовження (а): кнопка створює рахунок на новий період і зсуває повернення." />
           </p>
-        }
-      />
-      <ToClosing />
-    </div>
+        ),
+        closedNote: 'Оренду закрито. Рахунки відкриваються з вкладки «Документи», стан оренди від цього не змінюється.',
+      }}
+    />
   )
 }

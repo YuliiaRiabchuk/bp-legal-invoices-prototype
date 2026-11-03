@@ -26,29 +26,43 @@ const CHROME = argOf(
 const OUT = 'shots/readme'
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 
-/** [файл, варіант, сцена, дія перед кадром] */
+/** [файл, варіант, сцена, дія перед кадром, етап у URL] */
+const tab = (name) => async (p) => p.click(`[data-testid="tab-${name}"]`)
 const FRAMES = [
-  ['0-five', '0', 'five', async (p) => p.click('[data-testid="tab-Оренда"]')],
-  ['a-registry', 'A', 'five', async (p) => p.click('[data-testid="tab-Рахунки"]')],
+  ['0-five', '0', 'five'],
+  ['0-start', '0', 'start', async (p) => p.click('[data-testid="row-chevron"]'), 'payment'],
+  ['a-registry', 'A', 'five', tab('Рахунки')],
+  ['a-payment', 'A', 'start', null, 'payment'],
   ['b-rail', 'B', 'five'],
-  ['c-strip', 'C', 'period'],
-  ['d-book', 'D', 'five'],
+  ['c-node', 'C', 'five', null, 'payment'],
+  ['c-active', 'C', 'period'],
+  ['d-documents', 'D', 'five', tab('Документи')],
+  ['d-select', 'D', 'cash', async (p) => p.click('[data-testid="charge-check"]')],
   ['b-period-composer', 'B', 'period', async (p) => p.click('[data-testid="next-period"]')],
-  ['d-period-composer', 'D', 'period', async (p) => p.click('[data-testid="book-next-period"]')],
+  [
+    'd-period-composer',
+    'D',
+    'period',
+    async (p) => {
+      await tab('Документи')(p)
+      await sleep(200)
+      await p.click('[data-testid="docs-next-period"]')
+    },
+  ],
   ['b-covered', 'B', 'extend-paid'],
   ['c-covered', 'C', 'extend-paid'],
   ['a-extend', 'A', 'extend', async (p) => p.click('[data-testid="extend-open"]')],
-  ['d-ten', 'D', 'edge-ten'],
+  ['d-ten', 'D', 'edge-ten', tab('Документи')],
   ['c-ten', 'C', 'edge-ten'],
-  ['b-no-number', 'B', 'no-number'],
+  ['b-no-number', 'B', 'no-number', null, 'payment'],
   ['print', 'B', 'closed', async (p) => p.click('[data-testid="invoice-card"][data-number="1102"] [data-testid="invoice-print"]')],
 ]
 
 mkdirSync(OUT, { recursive: true })
 const browser = await puppeteer.launch({ executablePath: CHROME, headless: 'new', defaultViewport: { width: 1366, height: 768 } })
 const page = await browser.newPage()
-for (const [name, v, scene, act] of FRAMES) {
-  await page.goto(`${BASE}?${new URLSearchParams({ v, scene, lab: 'off' })}`, { waitUntil: 'networkidle0' })
+for (const [name, v, scene, act, stage] of FRAMES) {
+  await page.goto(`${BASE}?${new URLSearchParams({ v, scene, lab: 'off', ...(stage ? { stage } : {}) })}`, { waitUntil: 'networkidle0' })
   await sleep(300)
   if (act) {
     await act(page)

@@ -29,6 +29,10 @@ export interface CardActions {
 export interface InvoiceErrand {
   via: 'button' | 'period' | 'charge'
   chargeId?: string
+  /** Кілька нарахувань одразу: галочки в таблиці (D). */
+  chargeIds?: string[]
+  /** «По яке число» — напр. дата «вистачить до». */
+  to?: string
 }
 
 export const CardContext = createContext<CardActions | null>(null)
