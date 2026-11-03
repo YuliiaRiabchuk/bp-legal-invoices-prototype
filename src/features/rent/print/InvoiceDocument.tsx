@@ -20,13 +20,13 @@ import type { Invoice, Rent } from '@/mock/types'
  * Повна назва послуги і повний IBAN не обрізаються: це юридичний документ
  * (§3, крайні стани).
  */
-export function InvoiceDocument({ rent, invoice }: { rent: Rent; invoice: Invoice }) {
+export function InvoiceDocument({ rent, invoice, compact }: { rent: Rent; invoice: Invoice; /** У docked-панелі: менші поля. */ compact?: boolean }) {
   const org = ORG_BY_ID[invoice.orgId]
   const cp = rent.counterparty
   const vatFree = isVatFree(invoice)
   return (
     <article
-      className="invoice-sheet mx-auto w-full max-w-[720px] bg-white p-8 text-[12px] leading-snug text-fg"
+      className={`invoice-sheet mx-auto w-full max-w-[720px] bg-white ${compact ? 'p-4' : 'p-8'} text-[12px] leading-snug text-fg`}
       data-testid="invoice-document"
     >
       <header className="grid grid-cols-[7.5rem_1fr] gap-x-3 gap-y-1">

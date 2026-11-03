@@ -7,7 +7,15 @@ import { ORG_BY_ID } from '@/mock/orgs'
 import type { Rent } from '@/mock/types'
 import { Proposal } from './Proposal'
 
-const GRID = 'grid grid-cols-[minmax(0,1.5fr)_minmax(0,1.6fr)_minmax(0,1.2fr)_6.5rem_5.5rem] items-center gap-x-3 px-3 py-2'
+const GRID =
+  'grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-0.5 px-3 py-2 @[38rem]:grid-cols-[minmax(0,1.5fr)_minmax(0,1.6fr)_minmax(0,1.2fr)_6.5rem_5.5rem]'
+// Місце клітинки у вузькому вигляді; на широкому порядок за DOM.
+const NARROW = {
+  invoice: 'col-span-2 order-2 @[38rem]:col-span-1 @[38rem]:order-none',
+  status: 'col-span-2 order-3 @[38rem]:col-span-1 @[38rem]:order-none',
+  amount: 'order-1 @[38rem]:order-none',
+  vat: 'hidden @[38rem]:block',
+}
 
 /**
  * «Прийом коштів» нових варіантів: ті самі колонки, що в проді (Спосіб ·
@@ -33,8 +41,8 @@ export function ReceiptsTable({ rent }: { rent: Rent }) {
     )
   }
   return (
-    <div className="overflow-hidden rounded-lg border border-border bg-card" data-testid="receipts-table">
-      <div className={cn(GRID, 'border-b border-border bg-muted/50 py-1.5 text-label text-muted-fg')}>
+    <div className="@container overflow-hidden rounded-lg border border-border bg-card" data-testid="receipts-table">
+      <div className={cn(GRID, 'hidden border-b border-border bg-muted/50 py-1.5 text-label text-muted-fg @[38rem]:grid')}>
         <span>Спосіб</span>
         <span className="flex items-center gap-1.5">
           Рахунок
@@ -57,17 +65,17 @@ export function ReceiptsTable({ rent }: { rent: Rent }) {
               <p className="truncate text-label text-muted-fg">{ORG_BY_ID[rent.orgId].name}</p>
             </div>
             {inv ? (
-              <p className="min-w-0 text-body text-fg-2" data-pay-invoice={inv.number ?? ''}>
+              <p className={cn('min-w-0 text-body text-fg-2', NARROW.invoice)} data-pay-invoice={inv.number ?? ''}>
                 <span className="font-medium text-fg">№ {inv.number ?? '—'}</span>
                 <span className="block truncate text-label text-muted-fg">{invoiceTitle(rent, inv)}</span>
               </p>
             ) : (
-              <p className="min-w-0 text-body text-fg-2">
+              <p className={cn('min-w-0 text-body text-fg-2', NARROW.invoice)}>
                 <span className="font-medium text-fg">На балансі</span>
                 <span className="block truncate text-label text-muted-fg">рахунок не розпізнано, прив’яже бухгалтерія</span>
               </p>
             )}
-            <div>
+            <div className={NARROW.status}>
               <span className="inline-flex items-center gap-1 text-body text-success-fg">
                 <Check className="size-3.5" aria-hidden />
                 Проведено
@@ -76,8 +84,8 @@ export function ReceiptsTable({ rent }: { rent: Rent }) {
                 п/д № {p.number}, {fmtDay(p.date)}
               </p>
             </div>
-            <span className="text-right text-body tabular-nums text-fg">{formatMoney(p.amount)}</span>
-            <span className="text-right text-body tabular-nums text-muted-fg">{vat ? formatMoney(Math.round(vat)) : '—'}</span>
+            <span className={cn('text-right text-body tabular-nums text-fg', NARROW.amount)}>{formatMoney(p.amount)}</span>
+            <span className={cn('text-right text-body tabular-nums text-muted-fg', NARROW.vat)}>{vat ? formatMoney(Math.round(vat)) : '—'}</span>
           </div>
         )
       })}
@@ -92,19 +100,19 @@ export function ReceiptsTable({ rent }: { rent: Rent }) {
               </p>
               <p className="truncate text-label text-muted-fg">{ORG_BY_ID[c.fopId].name}</p>
             </div>
-            <p className="min-w-0 text-body text-fg-2">
+            <p className={cn('min-w-0 text-body text-fg-2', NARROW.invoice)}>
               <span className="font-medium text-fg">{ch?.article ?? c.purpose}</span>
               <span className="block truncate text-label text-muted-fg">рахунки не змінюються</span>
             </p>
-            <div>
+            <div className={NARROW.status}>
               <span className="inline-flex items-center gap-1 text-body text-success-fg">
                 <Check className="size-3.5" aria-hidden />
                 Підтверджено
               </span>
               <p className="text-label text-muted-fg">{c.number ? `ПКО ${c.number}` : 'ПКО — № очікується'}</p>
             </div>
-            <span className="text-right text-body tabular-nums text-fg">{formatMoney(c.amount)}</span>
-            <span className="text-right text-body text-muted-fg">—</span>
+            <span className={cn('text-right text-body tabular-nums text-fg', NARROW.amount)}>{formatMoney(c.amount)}</span>
+            <span className={cn('text-right text-body text-muted-fg', NARROW.vat)}>—</span>
           </div>
         )
       })}

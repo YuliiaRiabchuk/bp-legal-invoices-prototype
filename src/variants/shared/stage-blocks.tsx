@@ -171,7 +171,7 @@ export function invoicesSentence(rent: Rent, where: string): { tone: StageTone; 
   if (failed)
     return { tone: 'attention', status: 'Номер не прийшов', text: `1С не присвоїла номер. Друк і PDF недоступні, доки номер не прийде; деталі — ${where}.` }
   if (pending)
-    return { tone: 'waiting', status: '№ очікується', text: `Оренда і застава сформовані на переході до оплати. Друкарська форма відкриється сама, щойно 1С присвоїть номер.` }
+    return { tone: 'waiting', status: '№ очікується', text: `Оренда і застава сформовані на переході до оплати. Друк стане доступним, щойно 1С присвоїть номер.` }
   return { tone: 'done', status: `${live.length} сформовано`, text: `Рахунки ${numbers.join(' і ')} готові: друк і PDF — ${where}.` }
 }
 

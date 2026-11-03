@@ -4,12 +4,11 @@ import { RentHeader } from './RentHeader'
 import { RentStageStepper } from './RentStageStepper'
 import { CardContext, type CardActions } from './card-context'
 import { Chronology } from './Chronology'
-import { PrintDialog } from './print/PrintDialog'
+import { PrintDrawer } from './print/PrintDrawer'
 import { rentStageForStatus } from './stages'
 import { useLab } from '@/lab/lab-state'
 import { useStore } from '@/state/store'
 import { VARIANT_UI } from '@/variants/registry'
-import { AutoPrint } from '@/variants/shared/use-auto-print'
 import type { Invoice } from '@/mock/types'
 
 /**
@@ -53,7 +52,8 @@ export function RentCard() {
   return (
     <CardContext.Provider value={actions}>
       <TooltipProvider delayDuration={150}>
-        <div className="flex h-full flex-col overflow-hidden bg-bg">
+        <div className="flex h-full overflow-hidden bg-bg">
+        <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
           <div className="shrink-0 border-b border-border">
             <RentHeader
               rent={rent}
@@ -99,16 +99,18 @@ export function RentCard() {
             </div>
           </div>
         </div>
-        {/* Перші два рахунки відкривають друк, щойно прийде номер (D1) — на будь-якій вкладці. */}
-        {party === 'ul' && step !== '0' && <AutoPrint rent={rent} />}
+        {/* Перегляд рахунку — docked-панель, як документи в CRM; сама не відкривається. */}
+        {live && (
+          <PrintDrawer
+            rent={rent}
+            invoice={live}
+            set={liveSet}
+            onPick={(inv) => setPrinting((p) => (p ? { ...p, id: inv.id } : p))}
+            onClose={() => setPrinting(null)}
+          />
+        )}
+        </div>
         <Chronology open={chronology} onClose={() => setChronology(false)} />
-        <PrintDialog
-          rent={rent}
-          invoice={live}
-          set={liveSet}
-          onPick={(inv) => setPrinting((p) => (p ? { ...p, id: inv.id } : p))}
-          onClose={() => setPrinting(null)}
-        />
       </TooltipProvider>
     </CardContext.Provider>
   )

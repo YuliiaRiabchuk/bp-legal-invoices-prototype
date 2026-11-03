@@ -1297,14 +1297,10 @@ table:has(> colgroup[data-fixed]) {
   [data-public-invoice] [data-print-hide] {
     display: none;
   }
-  /* Діалог центрується transform'ом: без скидання аркуш друкувався
-     зсунутим за край або чистим (урок bp-1259). */
-  [data-print-dialog] {
-    position: static !important;
-    transform: none !important;
-    max-height: none !important;
+  /* Панель не має обрізати аркуш: бланк друкується з початку сторінки. */
+  [data-print-drawer] {
+    width: auto !important;
     overflow: visible !important;
-    box-shadow: none !important;
   }
 }
 
