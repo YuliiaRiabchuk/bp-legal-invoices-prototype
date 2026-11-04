@@ -1,5 +1,4 @@
 import { Fragment, useState } from 'react'
-import { Checkbox } from '@/components/ui/checkbox'
 import { chargeGross, chargePlace } from '@/domain/invoicing'
 import { vatFor } from '@/domain/money'
 import { formatMoney } from '@/lib/money'
@@ -12,19 +11,14 @@ import { CashConfirm } from './OpenCharges'
  * (Найменування · Без ПДВ · ПДВ · Сума), замість колонки «Статус» —
  * «Рахунок»: де зараз нарахування. Нарахування не прив'язане до способу
  * оплати: його кладуть у рахунок або закривають готівкою (C1, F5).
- *
- * `selectable` — галочки на невиставлених нарахуваннях (варіант D): менеджер
- * сам обирає, що піде в новий рахунок.
  */
 export function ChargesTable({
   rent,
   onInvoice,
-  selectable,
 }: {
   rent: Rent
   /** «У рахунок» на рядку невиставленого нарахування. */
   onInvoice?: (chargeId: string) => void
-  selectable?: { selected: Set<string>; toggle: (id: string) => void }
 }) {
   const [cashFor, setCashFor] = useState<string | null>(null)
   if (rent.charges.length === 0) {
@@ -39,7 +33,6 @@ export function ChargesTable({
     <table className="w-full overflow-hidden rounded-lg border border-border bg-card text-body tabular-nums" data-testid="charges-table">
       <thead>
         <tr className="border-b border-border bg-muted/50 text-left text-label text-muted-fg">
-          {selectable && <th className="w-9 px-3 py-1.5" aria-label="Обрати" />}
           <th className="px-3 py-1.5 font-medium">Найменування</th>
           <th className="px-3 py-1.5 text-right font-medium">Без ПДВ</th>
           <th className="px-3 py-1.5 text-right font-medium">ПДВ</th>
@@ -58,18 +51,6 @@ export function ChargesTable({
           return (
             <Fragment key={c.id}>
               <tr className={cn('border-b border-border last:border-0', off && 'text-subtle')} data-testid="charge-row" data-charge={c.id}>
-                {selectable && (
-                  <td className="px-3 py-2">
-                    {open && (
-                      <Checkbox
-                        checked={selectable.selected.has(c.id)}
-                        onCheckedChange={() => selectable.toggle(c.id)}
-                        aria-label={`Обрати «${c.article}» у рахунок`}
-                        data-testid="charge-check"
-                      />
-                    )}
-                  </td>
-                )}
                 <td className={cn('px-3 py-2', off && 'line-through')}>
                   {c.article}
                   <span className="block text-label text-muted-fg">{c.service}</span>
@@ -117,7 +98,7 @@ export function ChargesTable({
               </tr>
               {cashFor === c.id && (
                 <tr className="border-b border-border bg-muted/40">
-                  <td colSpan={selectable ? 6 : 5} className="px-3 py-2">
+                  <td colSpan={5} className="px-3 py-2">
                     <CashConfirm rent={rent} charge={c} onDone={() => setCashFor(null)} className="max-w-sm" />
                   </td>
                 </tr>

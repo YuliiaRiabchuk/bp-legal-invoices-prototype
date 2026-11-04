@@ -78,8 +78,7 @@ export function RentCard() {
                     <div className="rounded-lg border border-border bg-card px-3 py-2.5">
                       <RentStageStepper current={stage} maxStage={frontier} onStageSelect={setStage} allowAllStages />
                     </div>
-                    {ui.Above && <ui.Above />}
-                    <div className={ui.wideRail ? 'rent-grid rent-grid--wide' : 'rent-grid'}>
+                    <div className="rent-grid">
                       <div className="min-w-0" data-testid="step-column">
                         <ui.RentTab stage={stage} />
                       </div>

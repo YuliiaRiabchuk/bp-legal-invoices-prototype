@@ -40,7 +40,7 @@ const CHROME = argOf(
 )
 const SHOTS = process.argv.includes('--shots')
 const JSON_OUT = argOf('--json', null)
-const VARIANTS = argOf('--variants', '0').split(',')
+const VARIANTS = argOf('--variants', '0,A,C').split(',')
 const W = 1366
 const H = 768
 const OUT_DIR = 'shots'
@@ -286,59 +286,6 @@ const DRIVERS = {
    * Варіант B — рахунки в рейлі. Усе робиться з рейлу на тому етапі, де
    * менеджер стоїть: «+ Рахунок» розгортає бланк тут же.
    */
-  B: {
-    /** Сцена 1: два рахунки створено на вході в «Оплату» (D1), кліків немає. */
-    async start() {
-      return true
-    },
-    /** Сцена 2: доставки ще немає в нарахуваннях — вільний рядок бланка, як «+» у 1С. */
-    async delivery(run) {
-      await run.click('[data-testid="rail-b-add-invoice"]')
-      await run.select('[data-testid="composer-free-article"]', 'delivery')
-      await run.type('[data-testid="composer-free-price"]', 1000)
-      await run.click('[data-testid="composer-submit"]')
-      return true
-    },
-    /** Сцена 3: підказка «наступний період», межа за ритмом 15/30 уже стоїть. */
-    async period(run) {
-      await run.click('[data-testid="next-period"]')
-      await run.click('[data-testid="composer-submit"]')
-      return true
-    },
-    /** Сцена 4а: кнопки продовження немає — рахунок на новий період «по» +7 діб. */
-    async extend(run) {
-      await run.click('[data-testid="next-period"]')
-      await run.date('[data-testid="composer-period-to"]', '2026-11-05')
-      await run.click('[data-testid="composer-submit"]')
-      return true
-    },
-    /** Сцена 4б: «грошей вистачить до» у блоці «Оренда» рейлу, без кліків. */
-    async coveredUntil() {
-      return !!(await page.$('[data-testid="covered-until"]'))
-    },
-    async cancel(run) {
-      await run.click('[data-testid="invoice-card"][data-number="1140"] [data-testid="invoice-menu"]')
-      await run.click('[data-testid="invoice-cancel"]')
-      await run.click('[data-testid="cancel-submit"]')
-      return true
-    },
-    async noNumber() {
-      return true
-    },
-    /** Сцена 6: стос рахунків — кожна платіжка під своїм рахунком, 0 кліків. */
-    async answerFive() {
-      return true
-    },
-    async closedPrint(run) {
-      await run.click('[data-testid="invoice-card"][data-number="1102"] [data-testid="invoice-print"]')
-      return true
-    },
-    async cash(run) {
-      await run.click('[data-testid="open-charge-cash"]')
-      await run.click('[data-testid="cash-submit"]')
-      return true
-    },
-  },
   /**
    * Варіант A — реєстр рахунків. Рахунки у вкладці «Рахунки»; продовження
    * (а) — кнопка в шапці оренди, доступна з будь-якої вкладки.
@@ -453,65 +400,6 @@ const DRIVERS = {
     },
   },
 
-  /** Варіант D — рахунки в «Документах»; продовження (а). */
-  D: {
-    async start() {
-      return true
-    },
-    async delivery(run) {
-      await run.click('[data-testid="tab-Документи"]')
-      await run.click('[data-testid="docs-new-invoice"]')
-      await run.select('[data-testid="composer-free-article"]', 'delivery')
-      await run.type('[data-testid="composer-free-price"]', 1000)
-      await run.click('[data-testid="composer-submit"]')
-      return true
-    },
-    async period(run) {
-      await run.click('[data-testid="tab-Документи"]')
-      await run.click('[data-testid="docs-next-period"]')
-      await run.click('[data-testid="composer-submit"]')
-      return true
-    },
-    async extend(run) {
-      await run.click('[data-testid="extend-open"]')
-      await run.date('[data-testid="extend-date"]', '2026-11-05')
-      await run.click('[data-testid="extend-submit"]')
-      return true
-    },
-    /** Продовження (а): сцена 4б не застосовна. */
-    async coveredUntil() {
-      return null
-    },
-    async cancel(run) {
-      await run.click('[data-testid="tab-Документи"]')
-      await run.click('[data-testid="doc-row"][data-number="1140"] [data-testid="invoice-menu"]')
-      await run.click('[data-testid="invoice-cancel"]')
-      await run.click('[data-testid="cancel-submit"]')
-      return true
-    },
-    async noNumber() {
-      return true
-    },
-    /** Сцена 6: дерево документів — кожна платіжка під своїм рахунком. */
-    async answerFive(run) {
-      await run.click('[data-testid="tab-Документи"]')
-      return true
-    },
-    /** Сцена 9: АВР — третій рівень дерева. */
-    async showDocs(run) {
-      await run.click('[data-testid="tab-Документи"]')
-    },
-    async closedPrint(run) {
-      await run.click('[data-testid="tab-Документи"]')
-      await run.click('[data-testid="doc-row"][data-number="1102"] [data-testid="doc-print"]')
-      return true
-    },
-    async cash(run) {
-      await run.click('[data-testid="open-charge-cash"]')
-      await run.click('[data-testid="cash-submit"]')
-      return true
-    },
-  },
 }
 
 /* ── Сцени ─────────────────────────────────────────────────────────── */

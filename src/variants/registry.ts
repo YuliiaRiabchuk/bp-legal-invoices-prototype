@@ -5,14 +5,9 @@ import { RailV0 } from './v0/RailV0'
 import { DocumentsV0 } from './v0/DocumentsV0'
 import { InvoicesTabA } from './a/InvoicesTabA'
 import { RailA, RentTabA } from './a/RentTabA'
-import { RailB } from './b/RailB'
-import { RentTabB } from './b/RentTabB'
 import { RailC, RentTabC } from './c/RentTabC'
-import { DocumentsD } from './d/DocumentsD'
-import { RentTabD } from './d/RentTabD'
 import { DocumentsTree } from './shared/DocumentsTree'
 import { ExtendAction } from './shared/ExtendAction'
-import { ProdRail } from './shared/ProdRail'
 
 /**
  * Варіант = уся композиція картки: таби, вміст вкладки «Оренда» на кожному
@@ -24,12 +19,8 @@ export interface VariantUi {
   Rail: ComponentType
   /** Інші вкладки варіанта; невідома вкладка — заглушка. */
   Tabs: Record<string, ComponentType>
-  /** Рейл ширший за прод (24rem): у ньому живуть рахунки. */
-  wideRail?: boolean
-  /** Дія в шапці оренди, доступна з будь-якої вкладки (продовження (а)). */
+  /** Дія в шапці оренди, доступна з будь-якої вкладки (продовження (а), варіант A). */
   HeaderAction?: ComponentType
-  /** Смуга над кроком і рейлом на вкладці «Оренда» (стрічка C). */
-  Above?: ComponentType
 }
 
 /** Таби проду (`detail/tabs.ts:51-56`). «Хронологія» відкриває бокову панель. */
@@ -44,7 +35,5 @@ export const VARIANT_UI: Record<string, VariantUi> = {
     Tabs: { Документи: DocumentsTree, Рахунки: InvoicesTabA },
     HeaderAction: ExtendAction,
   },
-  B: { tabs: PROD_TABS, RentTab: RentTabB, Rail: RailB, Tabs: { Документи: DocumentsTree }, wideRail: true },
   C: { tabs: PROD_TABS, RentTab: RentTabC, Rail: RailC, Tabs: { Документи: DocumentsTree } },
-  D: { tabs: PROD_TABS, RentTab: RentTabD, Rail: ProdRail, Tabs: { Документи: DocumentsD }, HeaderAction: ExtendAction },
 }

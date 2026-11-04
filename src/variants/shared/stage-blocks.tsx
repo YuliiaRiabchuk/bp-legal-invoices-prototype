@@ -1,15 +1,13 @@
 import type { ReactNode } from 'react'
-import { ArrowRight, HandCoins, PackageCheck, Receipt } from 'lucide-react'
+import { ArrowRight, PackageCheck } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Callout } from '@/components/ui/callout'
 import { daysIncl, depositLines, fmtDate, invoiceState, rentLines, vatFor } from '@/domain/money'
-import { StageRail, type StageTone } from '@/features/rent/StageRail'
 import { useLab } from '@/lab/lab-state'
 import { formatMoney } from '@/lib/money'
 import { days as daysWord } from '@/lib/plural'
 import type { Rent } from '@/mock/types'
 import { useStore } from '@/state/store'
-import { PaymentsLedger } from './Ledger'
 import { Proposal } from './Proposal'
 
 /**
@@ -158,64 +156,6 @@ export function HandoverControls({ rent }: { rent: Rent }) {
         <PackageCheck aria-hidden />
         До видачі
       </Button>
-    </div>
-  )
-}
-
-/** Стан рахунків одним реченням — без сум: сума до сплати живе в одному місці варіанта. */
-export function invoicesSentence(rent: Rent, where: string): { tone: StageTone; status: string; text: string } {
-  const live = rent.invoices.filter((i) => !i.cancelled)
-  const failed = live.some((i) => i.numberState === 'failed')
-  const pending = live.some((i) => i.numberState === 'pending')
-  const numbers = live.filter((i) => i.number).map((i) => `№ ${i.number}`)
-  if (failed)
-    return { tone: 'attention', status: 'Номер не прийшов', text: `1С не присвоїла номер. Друк і PDF недоступні, доки номер не прийде; деталі — ${where}.` }
-  if (pending)
-    return { tone: 'waiting', status: '№ очікується', text: `Оренда і застава сформовані на переході до оплати. Друк стане доступним, щойно 1С присвоїть номер.` }
-  return { tone: 'done', status: `${live.length} сформовано`, text: `Рахунки ${numbers.join(' і ')} готові: друк і PDF — ${where}.` }
-}
-
-/**
- * Крок «Оплата» нових варіантів: рахунки одним реченням (самі рахунки —
- * там, де їх тримає варіант), надходження з банку і видача без гейтів.
- */
-export function PaymentStage({
-  rent,
-  where,
-  whereNote,
-  invoicesAction,
-  showPayments = true,
-}: {
-  rent: Rent
-  /** Де лежать рахунки: «на картках у рейлі праворуч». */
-  where: string
-  whereNote: string
-  invoicesAction?: ReactNode
-  showPayments?: boolean
-}) {
-  const live = rent.invoices.filter((i) => !i.cancelled)
-  const states = live.map((i) => invoiceState(rent, i).kind)
-  const paidAny = rent.payments.some((p) => p.booked && p.invoiceId)
-  const allPaid = live.length > 0 && states.every((k) => k === 'paid' || k === 'overpaid')
-  const inv = invoicesSentence(rent, where)
-  return (
-    <div className="flex flex-col gap-3" data-step="payment">
-      <StageRail testId="payment-rail">
-        <StageRail.Step key="inv" tone={inv.tone} icon={Receipt} label="Рахунки" heading headingStatus={inv.status} aside={invoicesAction}>
-          <p className="flex flex-wrap items-center gap-1.5 text-body text-fg-2">
-            {inv.text}
-            <Proposal note={whereNote} />
-          </p>
-        </StageRail.Step>
-        {showPayments && (
-          <StageRail.Step key="money" tone={allPaid ? 'done' : paidAny ? 'partial' : 'ready'} icon={HandCoins} label="Надходження" heading headingStatus={allPaid ? 'Оплачено' : paidAny ? 'Частково' : 'Чекаємо платіжку'}>
-            <PaymentsLedger rent={rent} />
-          </StageRail.Step>
-        )}
-        <StageRail.Step key="handover" tone="idle" icon={PackageCheck} label="Видача">
-          <HandoverControls rent={rent} />
-        </StageRail.Step>
-      </StageRail>
     </div>
   )
 }

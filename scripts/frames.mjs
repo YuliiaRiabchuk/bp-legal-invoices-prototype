@@ -33,29 +33,13 @@ const FRAMES = [
   ['0-start', '0', 'start', async (p) => p.click('[data-testid="row-chevron"]'), 'payment'],
   ['a-registry', 'A', 'five', tab('Рахунки')],
   ['a-payment', 'A', 'start', null, 'payment'],
-  ['b-rail', 'B', 'five'],
+  ['a-extend', 'A', 'extend', async (p) => p.click('[data-testid="extend-open"]')],
   ['c-node', 'C', 'five', null, 'payment'],
   ['c-active', 'C', 'period'],
-  ['d-documents', 'D', 'five', tab('Документи')],
-  ['d-select', 'D', 'cash', async (p) => p.click('[data-testid="charge-check"]')],
-  ['b-period-composer', 'B', 'period', async (p) => p.click('[data-testid="next-period"]')],
-  [
-    'd-period-composer',
-    'D',
-    'period',
-    async (p) => {
-      await tab('Документи')(p)
-      await sleep(200)
-      await p.click('[data-testid="docs-next-period"]')
-    },
-  ],
-  ['b-covered', 'B', 'extend-paid'],
   ['c-covered', 'C', 'extend-paid'],
-  ['a-extend', 'A', 'extend', async (p) => p.click('[data-testid="extend-open"]')],
-  ['d-ten', 'D', 'edge-ten', tab('Документи')],
   ['c-ten', 'C', 'edge-ten'],
-  ['b-no-number', 'B', 'no-number', null, 'payment'],
-  ['print', 'B', 'closed', async (p) => p.click('[data-testid="invoice-card"][data-number="1102"] [data-testid="invoice-print"]')],
+  ['c-no-number', 'C', 'no-number', null, 'payment'],
+  ['print', 'C', 'closed', async (p) => p.click('[data-testid="book-entry"][data-number="1102"] [data-testid="invoice-print"]')],
 ]
 
 mkdirSync(OUT, { recursive: true })

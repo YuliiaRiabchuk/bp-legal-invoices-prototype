@@ -4,7 +4,7 @@ import { useCard } from '@/features/rent/card-context'
 import { invoiceState } from '@/domain/money'
 import type { StageKey } from '@/mock/types'
 import { useStore } from '@/state/store'
-import { CoverageB } from '../b/RailB'
+import { Coverage } from '../shared/Coverage'
 import { InvoiceBook } from '../shared/InvoiceBook'
 import { Proposal } from '../shared/Proposal'
 import { ProdPage } from '../shared/ProdPage'
@@ -47,7 +47,7 @@ export function RentTabC({ stage }: { stage: StageKey }) {
         invoicesNode: node,
         activeBlock: (
           <>
-            <CoverageB rent={rent} onInvoiceTo={(to) => setInvoiceErrand({ via: 'period', to })} />
+            <Coverage rent={rent} onInvoiceTo={(to) => setInvoiceErrand({ via: 'period', to })} />
             <Section title="Рахунки на оплату" aside={<Proposal note="Той самий вузол, що на кроці «Оплата»: рахунки не ховаються після видачі." />} testId="invoices-section">
               <InvoiceBook embedded />
             </Section>

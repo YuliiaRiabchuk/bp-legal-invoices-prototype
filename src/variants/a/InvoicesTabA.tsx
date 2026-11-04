@@ -96,7 +96,7 @@ export function InvoicesTabA() {
 
       {seed && (
         <div className="border-b border-border bg-muted/50 px-4 py-3">
-          <InvoiceComposer key={seed.nonce} seed={seed} onClose={() => setSeed(null)} className="max-w-xl rounded-lg border border-border bg-card" />
+          <InvoiceComposer key={seed.nonce} seed={seed} onClose={() => setSeed(null)} />
         </div>
       )}
       {!seed && np.due && last && (

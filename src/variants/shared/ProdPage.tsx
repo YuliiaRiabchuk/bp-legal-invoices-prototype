@@ -37,8 +37,6 @@ export interface ProdSlots {
   equipmentFooter?: ReactNode
   /** «У рахунок» на невиставленому нарахуванні. */
   onChargeInvoice?: (chargeId?: string) => void
-  /** Галочки на нарахуваннях і дія над ними (D). */
-  selectable?: { onInvoice: (ids: string[]) => void }
   /** Де лежать рахунки — для тексту переходу з оформлення. */
   where: string
   /** Що показати на закритій оренді під обладнанням. */
@@ -87,16 +85,6 @@ function useChargeForm() {
 }
 
 function ChargesBlock({ rent, slots, form, setForm }: { rent: Rent; slots: ProdSlots; form: boolean; setForm: (v: boolean) => void }) {
-  const [picked, setPicked] = useState<Set<string>>(new Set())
-  const toggle = (id: string) =>
-    setPicked((s) => {
-      const n = new Set(s)
-      if (n.has(id)) n.delete(id)
-      else n.add(id)
-      return n
-    })
-  const open = unbilledCharges(rent)
-  const ids = open.filter((c) => picked.has(c.id)).map((c) => c.id)
   return (
     <div className="flex flex-col gap-3">
       {form && (
@@ -110,31 +98,7 @@ function ChargesBlock({ rent, slots, form, setForm }: { rent: Rent; slots: ProdS
           />
         </div>
       )}
-      {slots.selectable && open.length > 0 && (
-        <div className="flex items-center gap-3" data-testid="charges-selection">
-          <p className="min-w-0 flex-1 text-label text-muted-fg">
-            {ids.length ? `Обрано ${ids.length} — вони підуть в один новий рахунок.` : 'Позначте нарахування, які мають піти в новий рахунок.'}
-          </p>
-          <Button
-            size="sm"
-            disabled={ids.length === 0}
-            onClick={() => {
-              slots.selectable!.onInvoice(ids)
-              setPicked(new Set())
-            }}
-            data-testid="charges-invoice"
-            data-main-action="invoice"
-          >
-            <Plus aria-hidden />
-            Виписати рахунок на обрані
-          </Button>
-        </div>
-      )}
-      <ChargesTable
-        rent={rent}
-        onInvoice={slots.onChargeInvoice}
-        selectable={slots.selectable ? { selected: picked, toggle } : undefined}
-      />
+      <ChargesTable rent={rent} onInvoice={slots.onChargeInvoice} />
     </div>
   )
 }

@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Plus, X } from 'lucide-react'
+import { Plus, Trash2, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
 import { chargeLine, daysIncl, fmtDay, lineGross, lineNet, orgOf, vatFor } from '@/domain/money'
 import { ARTICLES, ARTICLE_BY_ID, kindFor, linesTotal, nextPeriod, openCharges, periodLines } from '@/domain/invoicing'
-import { formatMoney } from '@/lib/money'
+import { formatAmount, formatMoney } from '@/lib/money'
 import { days as daysWord } from '@/lib/plural'
 import { cn } from '@/lib/utils'
 import type { Charge, InvoiceLine } from '@/mock/types'
@@ -33,7 +33,6 @@ export type ComposerSeed =
       mode: 'new'
       via: 'button' | 'period' | 'charge'
       chargeId?: string
-      chargeIds?: string[]
       /** «По яке число» замість межі ритму — напр. дата «вистачить до». */
       to?: string
       nonce: number
@@ -97,7 +96,7 @@ export function InvoiceComposer({
   const [picked, setPicked] = useState<Set<string>>(() => {
     if (seed.mode === 'edit') return new Set()
     // «Додати й виставити»: id нового нарахування ще не відомий — беремо останнє.
-    if (seed.via === 'charge') return new Set((seed.chargeIds ?? [seed.chargeId ?? charges.at(-1)?.id]).filter(Boolean) as string[])
+    if (seed.via === 'charge') return new Set([seed.chargeId ?? charges.at(-1)?.id].filter(Boolean) as string[])
     if (seed.via === 'button') return new Set(charges.map((c) => c.id))
     return new Set()
   })
@@ -193,7 +192,7 @@ export function InvoiceComposer({
   return (
     <form
       ref={formRef}
-      className={cn('border-b border-border bg-muted/50 px-3 pb-3 pt-2.5', className)}
+      className={cn('w-full max-w-3xl overflow-hidden rounded-lg border border-border bg-card', className)}
       data-testid="composer"
       aria-label={editing ? `Редагування рахунку № ${editing.number ?? ''}` : 'Новий рахунок'}
       onSubmit={(e) => {
@@ -204,114 +203,132 @@ export function InvoiceComposer({
         if (e.key === 'Escape') onClose(false)
       }}
     >
-      <header className="flex items-center gap-2">
-        <h3 className="text-body font-semibold text-fg">
-          {editing ? `Рахунок № ${editing.number ?? '—'}: правка` : 'Новий рахунок'}
-        </h3>
-        <Proposal note="Рахунок виписується окремою дією на будь-якому етапі оренди. Склад обирає менеджер галочками; вільний рядок — як «+» у бланку 1С." />
+      <header className="flex items-center gap-2 border-b border-border px-3 py-2">
+        <h3 className="text-body font-semibold text-fg">{editing ? `Рахунок № ${editing.number ?? '—'}` : 'Новий рахунок'}</h3>
+        <span className="min-w-0 truncate text-label text-muted-fg">від {orgOf(rent).name}</span>
+        <Proposal note="Рахунок виписується окремою дією на будь-якому етапі оренди. Склад обирає менеджер галочками; «+ Додати послугу» — як рядок у бланку 1С." />
         <button
           type="button"
           onClick={() => onClose(false)}
           aria-label="Закрити бланк"
-          className="ml-auto grid size-6 place-items-center rounded-sm text-muted-fg hover:bg-muted hover:text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fg"
+          className="ml-auto grid size-7 shrink-0 place-items-center rounded-sm text-muted-fg hover:bg-muted hover:text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fg"
         >
-          <X className="size-3.5" aria-hidden />
+          <X className="size-4" aria-hidden />
         </button>
       </header>
-      <p className="mt-0.5 text-label text-muted-fg">
-        від {orgOf(rent).name}
-        {editing && ' — номер 1С лишиться той самий, клієнту треба надіслати новий PDF'}
-      </p>
+      {editing && (
+        <p className="border-b border-border bg-muted/40 px-3 py-1.5 text-label text-fg-2">Номер 1С лишиться той самий. Після збереження надішліть клієнту новий PDF.</p>
+      )}
 
-      <div className="mt-2.5 flex flex-col gap-1.5">
-        {/* Правка не-орендного рахунку оренду не пропонує: це інший документ. */}
+      <div className="px-3">
+        <div className={cn(GRID, 'border-b border-border py-1.5 text-label text-muted-fg')}>
+          <span />
+          <span>Послуга</span>
+          <span className="text-right">К-сть</span>
+          <span className="text-right">Ціна без ПДВ</span>
+          <span className="text-right">ПДВ</span>
+          <span className="text-right">Сума з ПДВ</span>
+          <span />
+        </div>
+
+        {/* Оренда за період — група: рядок з датами, під ним послуги оренди. */}
         {((seed.mode === 'new' && rentRows.length > 0) || editRent) && (
-          <Row
-            checked={rentOn}
-            onCheck={setRentOn}
-            testId="composer-rent"
-            title={`Оренда з ${fmtDay(periodFrom)}`}
-            amount={rentOn ? linesTotal(rentRows) : null}
-          >
-            {rentOn ? (
-              <>
-                <label className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-label text-muted-fg">
-                  по яке число
-                  <Input
-                    type="date"
-                    value={periodTo}
-                    min={periodFrom}
-                    onChange={(e) => e.target.value && setPeriodTo(e.target.value)}
-                    className="h-7 w-[9.5rem] px-2 text-label"
-                    data-testid="composer-period-to"
-                  />
-                  <span className="tabular-nums text-fg-2">{days > 0 ? daysWord(days) : 'дата раніша за початок'}</span>
-                </label>
-                {beyondReturn && (
-                  <label className="mt-1.5 flex items-center gap-1.5 text-label text-fg-2" data-testid="composer-move-return">
-                    <Checkbox checked={moveReturn} onCheckedChange={(v) => setMoveReturn(v === true)} aria-label="Перенести планове повернення" />
-                    перенести повернення з {fmtDay(rent.returnAt)} на {fmtDay(periodTo)}
-                    <Proposal note="Рахунок за доби після планового повернення пропонує одразу перенести повернення; галочку можна зняти." />
-                  </label>
+          <div className="border-b border-border py-1" data-testid="composer-rent" data-checked={rentOn || undefined}>
+            <div className={cn(GRID, 'min-h-9')}>
+              <Checkbox
+                checked={rentOn}
+                onCheckedChange={(v) => setRentOn(v === true)}
+                aria-label={`Оренда з ${fmtDay(periodFrom)}`}
+                data-testid="composer-rent-check"
+              />
+              <div className="col-span-5 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-body">
+                <span className={cn(rentOn ? 'font-medium text-fg' : 'text-fg-2')}>Оренда з {fmtDay(periodFrom)}</span>
+                {rentOn ? (
+                  <>
+                    <span className="text-muted-fg">по</span>
+                    <Input
+                      type="date"
+                      value={periodTo}
+                      min={periodFrom}
+                      onChange={(e) => e.target.value && setPeriodTo(e.target.value)}
+                      aria-label="По яке число"
+                      className="h-7 w-[9.5rem] px-2 text-label"
+                      data-testid="composer-period-to"
+                    />
+                    <span className="text-label tabular-nums text-muted-fg">{days > 0 ? daysWord(days) : 'дата раніша за початок'}</span>
+                  </>
+                ) : (
+                  <span className="text-label text-muted-fg">на основі попереднього рахунку</span>
                 )}
-                <ul className="mt-1.5 flex flex-col gap-1">
-                  {rentRows.map((l) => (
-                    <li key={l.id} className="text-label text-fg-2">
-                      <span className="text-fg">{l.service}</span>
-                      {/* Два рядки завжди: довжина чисел не має перекидати рядок і штовхати «Сформувати». */}
-                      <span className="block tabular-nums text-muted-fg">
-                        {l.qty} × {daysWord(l.days ?? 0)} × {formatMoney(l.priceNet)} без ПДВ
-                      </span>
-                      <span className="block tabular-nums text-muted-fg">
-                        = {formatMoney(lineNet(l))} без ПДВ, {formatMoney(lineGross(l))} з ПДВ
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              </>
-            ) : (
-              <p className="text-label text-muted-fg">на основі попереднього рахунку, «по яке число» оберете далі</p>
+              </div>
+              <span />
+            </div>
+            {rentOn &&
+              rentRows.map((l) => (
+                <div key={l.id} className={cn(GRID, 'py-1 text-body')}>
+                  <span />
+                  <span className="min-w-0 text-fg-2">{l.service}</span>
+                  <span className="text-right tabular-nums text-fg-2">{l.qty > 1 ? `${l.qty} × ` : ''}{daysWord(l.days ?? 0)}</span>
+                  <span className="text-right tabular-nums text-fg-2">{formatAmount(l.priceNet)}</span>
+                  <span className="text-right tabular-nums text-muted-fg">{l.vatRate ? `${l.vatRate} %` : '—'}</span>
+                  <span className="text-right tabular-nums text-fg">{formatMoney(lineGross(l))}</span>
+                  <span />
+                </div>
+              ))}
+            {rentOn && beyondReturn && (
+              <label className="ml-7 mt-0.5 flex items-center gap-1.5 pb-1 text-label text-fg-2" data-testid="composer-move-return">
+                <Checkbox checked={moveReturn} onCheckedChange={(v) => setMoveReturn(v === true)} aria-label="Перенести планове повернення" />
+                Перенести повернення з {fmtDay(rent.returnAt)} на {fmtDay(periodTo)}
+                <Proposal note="Рахунок за доби після планового повернення пропонує одразу перенести повернення; галочку можна зняти." />
+              </label>
             )}
-          </Row>
+          </div>
         )}
 
         {kept.map((k, i) => (
-          <Row
-            key={k.line.id}
-            checked={k.checked}
-            onCheck={(v) => setKept((xs) => xs.map((x, j) => (j === i ? { ...x, checked: v } : x)))}
-            title={k.line.service}
-            amount={lineGross(k.line)}
-          >
-            <p className="text-label text-muted-fg">{k.line.vatRate ? 'з ПДВ' : 'без ПДВ'}</p>
-          </Row>
+          <div key={k.line.id} className={cn(GRID, 'min-h-9 border-b border-border py-1 text-body')}>
+            <Checkbox
+              checked={k.checked}
+              onCheckedChange={(v) => setKept((xs) => xs.map((x, j) => (j === i ? { ...x, checked: v === true } : x)))}
+              aria-label={k.line.service}
+            />
+            <span className={cn('min-w-0', k.checked ? 'text-fg' : 'text-fg-2')}>{k.line.service}</span>
+            <span className="text-right tabular-nums text-fg-2">{k.line.qty}</span>
+            <span className="text-right tabular-nums text-fg-2">{formatAmount(k.line.priceNet)}</span>
+            <span className="text-right tabular-nums text-muted-fg">{k.line.vatRate ? `${k.line.vatRate} %` : '—'}</span>
+            <span className="text-right tabular-nums text-fg">{formatMoney(lineGross(k.line))}</span>
+            <span />
+          </div>
         ))}
 
-        {charges.length > 0 && (
-          <p className="mt-1 text-label font-medium text-muted-fg">Не виставлено</p>
-        )}
         {charges.map((c) => {
           const l = chargeLine(rent, c, 'p')
+          const on = picked.has(c.id)
           return (
-            <Row
-              key={c.id}
-              checked={picked.has(c.id)}
-              onCheck={(v) =>
-                setPicked((s) => {
-                  const n = new Set(s)
-                  if (v) n.add(c.id)
-                  else n.delete(c.id)
-                  return n
-                })
-              }
-              testId="composer-charge"
-              title={c.article}
-              amount={lineGross(l)}
-            >
-              <p className="text-label text-muted-fg">
-                {c.service} — {l.vatRate ? `${formatMoney(lineNet(l))} без ПДВ` : 'без ПДВ'}
-              </p>
-            </Row>
+            <div key={c.id} className={cn(GRID, 'min-h-9 border-b border-border py-1 text-body')} data-testid="composer-charge" data-checked={on || undefined}>
+              <Checkbox
+                checked={on}
+                onCheckedChange={(v) =>
+                  setPicked((s) => {
+                    const n = new Set(s)
+                    if (v === true) n.add(c.id)
+                    else n.delete(c.id)
+                    return n
+                  })
+                }
+                aria-label={c.article}
+                data-testid="composer-charge-check"
+              />
+              <span className="min-w-0">
+                <span className={on ? 'text-fg' : 'text-fg-2'}>{c.service}</span>
+                <span className="block text-label text-muted-fg">не виставлено · {c.article}</span>
+              </span>
+              <span className="text-right tabular-nums text-fg-2">1</span>
+              <span className="text-right tabular-nums text-fg-2">{formatAmount(Math.abs(l.priceNet))}</span>
+              <span className="text-right tabular-nums text-muted-fg">{l.vatRate ? `${l.vatRate} %` : '—'}</span>
+              <span className="text-right tabular-nums text-fg">{formatMoney(lineGross(l))}</span>
+              <span />
+            </div>
           )
         })}
 
@@ -319,62 +336,61 @@ export function InvoiceComposer({
           const a = ARTICLE_BY_ID.get(f.articleId)
           const l = freeLine(f)
           return (
-            <div key={f.key} className="rounded-md border border-border-strong bg-card p-2" data-testid="composer-free">
-              <div className="flex items-center gap-1.5">
-                <select
-                  ref={i === 0 ? firstFreeRef : undefined}
-                  value={f.articleId}
-                  aria-label="Послуга"
-                  data-testid="composer-free-article"
-                  onChange={(e) => {
-                    const next = ARTICLE_BY_ID.get(e.target.value)
-                    patchFree(f.key, {
-                      articleId: e.target.value,
-                      service: next?.service ?? '',
-                      vatable: next ? next.vatable : true,
-                    })
-                  }}
-                  className="h-7 min-w-0 flex-1 rounded-md border border-border-strong bg-card px-1.5 text-label text-fg outline-none hover:border-border-hover focus:border-border-focus"
-                >
-                  <option value="">Оберіть послугу…</option>
-                  {ARTICLES.map((x) => (
-                    <option key={x.id} value={x.id}>
-                      {x.label}
-                    </option>
-                  ))}
-                </select>
-                <button
-                  type="button"
-                  onClick={() => setFree((xs) => xs.filter((x) => x.key !== f.key))}
-                  aria-label="Прибрати рядок"
-                  className="grid size-6 shrink-0 place-items-center rounded-sm text-muted-fg hover:bg-muted hover:text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fg"
-                >
-                  <X className="size-3.5" aria-hidden />
-                </button>
-              </div>
-              {/* Поля стоять одразу, ще до вибору послуги: бланк не росте під
-                  рукою, і «Сформувати» не з'їжджає між кліками (вимір зсуву). */}
-              <textarea
-                value={f.service}
-                onChange={(e) => patchFree(f.key, { service: e.target.value })}
-                rows={f.service.length > 42 ? 2 : 1}
-                disabled={!a}
-                placeholder="Назва послуги в рахунку"
-                aria-label="Назва послуги в рахунку"
-                className="mt-1.5 block w-full resize-none rounded-md border border-border-strong bg-card px-2 py-1 text-label leading-snug text-fg outline-none placeholder:text-subtle hover:border-border-hover focus:border-border-focus disabled:bg-muted"
-              />
-              <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-label text-muted-fg">
-                {a?.sale && (
-                  <>
-                    <Input
-                      value={f.qty}
-                      inputMode="numeric"
-                      onChange={(e) => patchFree(f.key, { qty: e.target.value })}
-                      aria-label="Кількість"
-                      className="h-7 w-12 px-2 text-right text-label tabular-nums"
+            <div key={f.key} className="border-b border-border py-1.5" data-testid="composer-free">
+              <div className={cn(GRID, 'items-start text-body')}>
+                <Checkbox
+                  checked={f.checked}
+                  onCheckedChange={(v) => patchFree(f.key, { checked: v === true })}
+                  aria-label="Рядок у рахунку"
+                  className="mt-1.5"
+                />
+                <div className="flex min-w-0 flex-col gap-1">
+                  <select
+                    ref={i === 0 ? firstFreeRef : undefined}
+                    value={f.articleId}
+                    aria-label="Послуга"
+                    data-testid="composer-free-article"
+                    onChange={(e) => {
+                      const next = ARTICLE_BY_ID.get(e.target.value)
+                      patchFree(f.key, {
+                        articleId: e.target.value,
+                        service: next?.service ?? '',
+                        vatable: next ? next.vatable : true,
+                      })
+                    }}
+                    className="h-7 w-full rounded-md border border-border-strong bg-card px-1.5 text-body text-fg outline-none hover:border-border-hover focus:border-border-focus"
+                  >
+                    <option value="">Вибрати послугу</option>
+                    {ARTICLES.map((x) => (
+                      <option key={x.id} value={x.id}>
+                        {x.label}
+                      </option>
+                    ))}
+                  </select>
+                  {/* Поле назви займає місце одразу, але видиме лише після вибору послуги: рядок не росте під рукою, «Сформувати» не з'їжджає. */}
+                  {(
+                    <input
+                      tabIndex={a ? undefined : -1}
+                      aria-hidden={!a || undefined}
+                      value={f.service}
+                      onChange={(e) => patchFree(f.key, { service: e.target.value })}
+                      placeholder="Назва послуги в рахунку"
+                      aria-label="Назва послуги в рахунку"
+                      className={cn('h-7 w-full rounded-md border border-border bg-card px-2 text-label text-fg-2 outline-none placeholder:text-subtle hover:border-border-hover focus:border-border-focus', !a && 'invisible')}
                     />
-                    ×
-                  </>
+                  )}
+                  {a?.deposit && <span className="text-label text-notice-fg">Застава піде окремим рахунком без ПДВ</span>}
+                </div>
+                {a?.sale ? (
+                  <Input
+                    value={f.qty}
+                    inputMode="numeric"
+                    onChange={(e) => patchFree(f.key, { qty: e.target.value })}
+                    aria-label="Кількість"
+                    className="h-7 px-2 text-right text-body tabular-nums"
+                  />
+                ) : (
+                  <span className="pt-1 text-right tabular-nums text-fg-2">1</span>
                 )}
                 <Input
                   value={f.price}
@@ -384,85 +400,62 @@ export function InvoiceComposer({
                   onChange={(e) => patchFree(f.key, { price: e.target.value })}
                   aria-label="Ціна без ПДВ"
                   data-testid="composer-free-price"
-                  className="h-7 w-[5.5rem] px-2 text-right text-label tabular-nums"
+                  className="h-7 px-2 text-right text-body tabular-nums"
                 />
-                <span>без ПДВ</span>
-                {vatPayer && !a?.deposit && (
-                  <label className="flex items-center gap-1">
-                    <Checkbox checked={f.vatable} disabled={!a} onCheckedChange={(v) => patchFree(f.key, { vatable: v === true })} aria-label="З ПДВ" />
-                    ПДВ 20 %
+                {vatPayer && !a?.deposit ? (
+                  <label className="flex h-7 items-center justify-end gap-1 text-label text-fg-2">
+                    <Checkbox checked={f.vatable} disabled={!a} onCheckedChange={(v) => patchFree(f.key, { vatable: v === true })} aria-label="ПДВ 20 %" />
+                    20 %
                   </label>
+                ) : (
+                  <span className="pt-1 text-right text-muted-fg">—</span>
                 )}
-                <span className="ml-auto font-medium tabular-nums text-fg">{l ? formatMoney(lineGross(l)) : '—'}</span>
+                <span className="pt-1 text-right tabular-nums text-fg">{l ? formatMoney(lineGross(l)) : '—'}</span>
+                <button
+                  type="button"
+                  onClick={() => setFree((xs) => xs.filter((x) => x.key !== f.key))}
+                  aria-label="Видалити рядок"
+                  className="grid size-7 place-items-center rounded-sm text-muted-fg hover:bg-muted hover:text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fg"
+                >
+                  <Trash2 className="size-3.5" aria-hidden />
+                </button>
               </div>
-              {a?.deposit && <p className="mt-1 text-label text-notice-fg">Застава — окремим рахунком без ПДВ</p>}
             </div>
           )
         })}
 
-        <button
-          type="button"
-          onClick={() => setFree((xs) => [...xs, blankFree()])}
-          className="flex w-fit items-center gap-1 rounded-sm px-1 py-0.5 text-label font-medium text-accent-fg hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fg"
-          data-testid="composer-add-line"
-        >
-          <Plus className="size-3" aria-hidden />
-          Рядок
-        </button>
-      </div>
-
-      <footer className="mt-2.5 border-t border-border pt-2">
-        {/* Підсумок — завжди один рядок: поки рядок не заповнено, там «—», а
-            не підказка чи помилка, що з'являються й зсувають «Сформувати». */}
-        <p className="flex items-baseline justify-between text-body">
-          <span className="text-fg-2">{deposit.length ? 'Рахунок з ПДВ' : 'Разом з ПДВ'}</span>
-          <span className="font-semibold tabular-nums text-fg">{main.length ? formatMoney(linesTotal(main)) : '—'}</span>
-        </p>
-        {deposit.length > 0 && (
-          <p className="flex items-baseline justify-between text-body">
-            <span className="text-fg-2">Застава, без ПДВ</span>
-            <span className="font-semibold tabular-nums text-fg">{formatMoney(linesTotal(deposit))}</span>
-          </p>
-        )}
-        <div className="mt-2 flex items-center justify-end gap-2">
-          <Button type="button" size="sm" variant="ghost" onClick={() => onClose(false)}>
-            Скасувати
-          </Button>
-          <Button type="submit" size="sm" disabled={!canSubmit} data-testid="composer-submit" data-main-action="compose">
-            {editing ? 'Зберегти зміни' : count > 1 ? 'Сформувати 2 рахунки' : 'Сформувати рахунок'}
+        <div className="py-1.5">
+          <Button type="button" size="sm" variant="ghost" onClick={() => setFree((xs) => [...xs, blankFree()])} data-testid="composer-add-line">
+            <Plus aria-hidden />
+            Додати послугу
           </Button>
         </div>
+      </div>
+
+      {/* Підсумок і дії — один рядок футера; сума займає своє місце завжди, тож «Сформувати» не з'їжджає. */}
+      <footer className="flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-border bg-muted/40 px-3 py-2.5">
+        <p className="mr-auto flex flex-wrap items-baseline gap-x-4 text-body">
+          <span>
+            <span className="text-fg-2">{deposit.length ? 'Рахунок, з ПДВ ' : 'Разом з ПДВ '}</span>
+            <span className="font-semibold tabular-nums text-fg">{main.length ? formatMoney(linesTotal(main)) : '—'}</span>
+          </span>
+          {deposit.length > 0 && (
+            <span>
+              <span className="text-fg-2">Застава, без ПДВ </span>
+              <span className="font-semibold tabular-nums text-fg">{formatMoney(linesTotal(deposit))}</span>
+            </span>
+          )}
+        </p>
+        <Button type="button" size="sm" variant="ghost" onClick={() => onClose(false)}>
+          Скасувати
+        </Button>
+        <Button type="submit" size="sm" disabled={!canSubmit} data-testid="composer-submit" data-main-action="compose">
+          {editing ? 'Зберегти зміни' : count > 1 ? 'Сформувати 2 рахунки' : 'Сформувати рахунок'}
+        </Button>
       </footer>
     </form>
   )
 }
 
-function Row({
-  checked,
-  onCheck,
-  title,
-  amount,
-  testId,
-  children,
-}: {
-  checked: boolean
-  onCheck: (v: boolean) => void
-  title: string
-  amount: number | null
-  testId?: string
-  children?: React.ReactNode
-}) {
-  return (
-    <div className={cn('flex gap-2 rounded-md px-1 py-1', checked ? 'bg-card' : '')} data-testid={testId} data-checked={checked || undefined}>
-      <Checkbox checked={checked} onCheckedChange={(v) => onCheck(v === true)} className="mt-0.5" aria-label={title} data-testid={testId ? `${testId}-check` : undefined} />
-      <div className="min-w-0 flex-1">
-        <div className="flex items-baseline gap-2">
-          <span className={cn('min-w-0 flex-1 text-body', checked ? 'font-medium text-fg' : 'text-fg-2')}>{title}</span>
-          {amount != null && <span className="shrink-0 text-body tabular-nums text-fg">{formatMoney(amount)}</span>}
-        </div>
-        {children}
-      </div>
-    </div>
-  )
-}
-
+/** Сітка бланка: галочка · послуга · к-сть · ціна без ПДВ · ПДВ · сума з ПДВ · дія. */
+const GRID = 'grid grid-cols-[1.25rem_minmax(0,1fr)_4.5rem_6.5rem_3.75rem_6.5rem_1.75rem] items-center gap-x-2'

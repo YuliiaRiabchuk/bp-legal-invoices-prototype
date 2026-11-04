@@ -15,25 +15,18 @@ import { useStore } from '@/state/store'
 /**
  * Правий рейл нових варіантів — той самий, що в проді (`detail/RentSummaryRail`):
  * «Обладнання і термін», «Клієнт», «Розрахунки за орендою», «Застава»,
- * «Документи». Варіант лише докладає свій блок (`top`) або свій рядок у
- * футер «Розрахунків» (`settlementExtra`); решта рейлу не змінюється.
+ * «Документи». Варіант лише докладає свій рядок у футер «Розрахунків»
+ * (`settlementExtra`); решта рейлу не змінюється.
  */
 export function ProdRail({
-  top,
-  hideSettlement,
   settlementExtra,
 }: {
-  /** Блок варіанта над рештою рейлу (B: рахунки, «вистачить до»). */
-  top?: ReactNode
-  /** Рахунки забрали «Розрахунки за орендою» собі (B). */
-  hideSettlement?: boolean
   /** Дія варіанта поруч із «+ Додати нарахування». */
   settlementExtra?: ReactNode
-}) {
+} = {}) {
   const { rent } = useStore()
   return (
     <div className="flex flex-col gap-3" data-testid="prod-rail">
-      {top}
       <Card title="Обладнання і термін">
         <ul className="flex flex-col gap-1">
           {rent.positions.map((p) => (
@@ -47,7 +40,7 @@ export function ProdRail({
         </p>
       </Card>
       <ClientCard rent={rent} />
-      {!hideSettlement && <Settlement rent={rent} extra={settlementExtra} />}
+      <Settlement rent={rent} extra={settlementExtra} />
       <DepositCard rent={rent} />
       <DocsCard rent={rent} />
     </div>

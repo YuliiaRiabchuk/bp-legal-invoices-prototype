@@ -61,7 +61,7 @@ export function InvoiceBook({ embedded = false }: { /** У вузлі кроку
   const periodRow = lastRent && np.due && rent.status !== 'CLOSED' && (
     periodOpen ? (
       <li className="border-b border-border bg-muted/40 px-4 py-2.5" key="period-composer">
-        <InvoiceComposer key={panel!.nonce} seed={panel as ComposerSeed} onClose={() => setPanel(null)} className="max-w-xl rounded-lg border border-border bg-card" />
+        <InvoiceComposer key={panel!.nonce} seed={panel as ComposerSeed} onClose={() => setPanel(null)} />
       </li>
     ) : (
       <li className="border-b border-border px-4 py-1.5" key="period-hint">
@@ -144,7 +144,7 @@ export function InvoiceBook({ embedded = false }: { /** У вузлі кроку
       )}
       {topPanel && topPanel.mode !== 'charge' && (
         <div className="border-b border-border bg-muted/50 px-4 py-3">
-          <InvoiceComposer key={topPanel.nonce} seed={topPanel} onClose={() => setPanel(null)} className="max-w-xl rounded-lg border border-border bg-card" />
+          <InvoiceComposer key={topPanel.nonce} seed={topPanel} onClose={() => setPanel(null)} />
         </div>
       )}
 
