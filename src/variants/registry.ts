@@ -6,8 +6,8 @@ import { DocumentsV0 } from './v0/DocumentsV0'
 import { InvoicesTabA } from './a/InvoicesTabA'
 import { RailA, RentTabA } from './a/RentTabA'
 import { RailC, RentTabC } from './c/RentTabC'
-import { DocumentsTree } from './shared/DocumentsTree'
-import { ExtendAction } from './shared/ExtendAction'
+import { DocumentsTab } from './shared/DocumentsTab'
+import { PaymentsRegistry } from './shared/PaymentsRegistry'
 
 /**
  * Варіант = уся композиція картки: таби, вміст вкладки «Оренда» на кожному
@@ -32,8 +32,7 @@ export const VARIANT_UI: Record<string, VariantUi> = {
     tabs: ['Оренда', 'Документи', 'Рахунки', 'Оренди клієнта', 'Реєстр платежів', 'Клієнт', 'Хронологія'],
     RentTab: RentTabA,
     Rail: RailA,
-    Tabs: { Документи: DocumentsTree, Рахунки: InvoicesTabA },
-    HeaderAction: ExtendAction,
+    Tabs: { Документи: DocumentsTab, Рахунки: InvoicesTabA, 'Реєстр платежів': PaymentsRegistry },
   },
-  C: { tabs: PROD_TABS, RentTab: RentTabC, Rail: RailC, Tabs: { Документи: DocumentsTree } },
+  C: { tabs: PROD_TABS, RentTab: RentTabC, Rail: RailC, Tabs: { Документи: DocumentsTab, 'Реєстр платежів': PaymentsRegistry } },
 }

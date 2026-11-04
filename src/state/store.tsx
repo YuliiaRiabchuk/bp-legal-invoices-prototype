@@ -59,6 +59,10 @@ export type Action =
   /** Нові варіанти: перехід «Оформлення → Оплата» сам формує оренду і заставу (D1, пропозиція). */
   | { type: 'START_PAYMENT'; rentLines: InvoiceLine[]; depositLines: InvoiceLine[] }
   | { type: 'INVOICE_CANCEL'; id: string; comment?: string }
+  /** Коментар до рахунку (BP-2298, крок 7); порожній текст прибирає коментар. */
+  | { type: 'INVOICE_COMMENT'; id: string; text: string }
+  /** «Переформувати»: нова версія друкованої форми, номер 1С той самий. */
+  | { type: 'INVOICE_REISSUE'; id: string }
   | { type: 'NUMBERS_ARRIVE' }
   | { type: 'CHARGE_ADD'; charge: Omit<Charge, 'id' | 'createdAt' | 'createdBy'> }
   | { type: 'CHARGE_CANCEL'; id: string; reason?: string }
@@ -207,6 +211,31 @@ function reducer(state: State, action: Action): State {
       ]
       let rent: Rent = { ...s.rent, status: 'PENDING_PAYMENT', invoices: [...s.rent.invoices, ...pair] }
       rent = withEvent(rent, s, { kind: 'invoice', who: 'Система', text: `Перехід до оплати: сформовано рахунки на оренду і заставу; № очікується від 1С` })
+      return { ...s, rent }
+    }
+
+    case 'INVOICE_COMMENT': {
+      const s = tick(state)
+      const text = action.text.trim()
+      let rent: Rent = {
+        ...s.rent,
+        invoices: s.rent.invoices.map((i) =>
+          i.id === action.id ? { ...i, comment: text ? { text, by: MANAGER.name, at: stamp(s) } : undefined } : i,
+        ),
+      }
+      const inv = rent.invoices.find((i) => i.id === action.id)!
+      rent = withEvent(rent, s, { kind: 'invoice-edit', text: text ? `Коментар до рахунку № ${inv.number ?? '—'}: «${text}»` : `Коментар до рахунку № ${inv.number ?? '—'} прибрано` })
+      return { ...s, rent }
+    }
+
+    case 'INVOICE_REISSUE': {
+      const s = tick(state)
+      let rent: Rent = {
+        ...s.rent,
+        invoices: s.rent.invoices.map((i) => (i.id === action.id ? { ...i, version: (i.version ?? 1) + 1 } : i)),
+      }
+      const inv = rent.invoices.find((i) => i.id === action.id)!
+      rent = withEvent(rent, s, { kind: 'invoice-edit', text: `Рахунок № ${inv.number ?? '—'} переформовано, версія ${inv.version}` })
       return { ...s, rent }
     }
 

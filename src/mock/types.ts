@@ -99,9 +99,16 @@ export interface Invoice {
   period?: { from: string; to: string }
   lines: InvoiceLine[]
   orgId: string
+  /** Скасований менеджером або позначений на видалення в 1С (`by: '1С'` — анульовано, BP-2298). */
   cancelled?: { by: string; at: string; comment?: string }
   /** Створений системою на переході «Оформлення → Оплата» (D1, пропозиція). */
   auto?: true
+  /** Рахунок виписали в 1С по цій оренді, і він прийшов пулом (BP-2298, крок 3). */
+  source?: '1c'
+  /** Коментар до рахунку для менеджерів (BP-2298, крок 7). */
+  comment?: { text: string; by: string; at: string }
+  /** Версія друкованої форми: «Переформувати» дає нову з тим самим номером 1С. */
+  version?: number
 }
 
 /**
@@ -162,6 +169,8 @@ export interface Doc1c {
   date: string
   invoiceId: string
   amount: number
+  /** Позначений у 1С на видалення: лишається з позначкою «анульовано» (BP-2299, крок 5). */
+  annulled?: { at: string }
 }
 
 export type EventKind =

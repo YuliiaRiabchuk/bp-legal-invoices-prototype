@@ -5,6 +5,7 @@ import { formatMoney } from '@/lib/money'
 import { cn } from '@/lib/utils'
 import { ORG_BY_ID } from '@/mock/orgs'
 import type { Rent } from '@/mock/types'
+import { InvoiceRef, NoInvoice } from './InvoiceRef'
 import { Proposal } from './Proposal'
 
 const GRID =
@@ -65,14 +66,14 @@ export function ReceiptsTable({ rent }: { rent: Rent }) {
               <p className="truncate text-label text-muted-fg">{ORG_BY_ID[rent.orgId].name}</p>
             </div>
             {inv ? (
-              <p className={cn('min-w-0 text-body text-fg-2', NARROW.invoice)} data-pay-invoice={inv.number ?? ''}>
-                <span className="font-medium text-fg">№ {inv.number ?? '—'}</span>
+              <p className={cn('min-w-0 text-body text-fg-2', NARROW.invoice)}>
+                <InvoiceRef inv={inv} />
                 <span className="block truncate text-label text-muted-fg">{invoiceTitle(rent, inv)}</span>
               </p>
             ) : (
               <p className={cn('min-w-0 text-body text-fg-2', NARROW.invoice)}>
-                <span className="font-medium text-fg">На балансі</span>
-                <span className="block truncate text-label text-muted-fg">рахунок не розпізнано, прив’яже бухгалтерія</span>
+                <NoInvoice />
+                <span className="block truncate text-label text-muted-fg">прив’яже бухгалтерія в 1С</span>
               </p>
             )}
             <div className={NARROW.status}>

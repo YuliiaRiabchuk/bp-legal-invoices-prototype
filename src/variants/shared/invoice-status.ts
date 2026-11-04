@@ -13,7 +13,7 @@ export function statusView(rent: Rent, inv: Invoice): { state: InvoiceState; lab
   const state = invoiceState(rent, inv)
   switch (state.kind) {
     case 'cancelled':
-      return { state, label: 'Скасовано', tone: 'outline' }
+      return { state, label: inv.cancelled?.by === '1С' ? 'Анульовано' : 'Скасовано', tone: 'outline' }
     case 'number-pending':
       return { state, label: '№ очікується', tone: 'default' }
     case 'number-failed':

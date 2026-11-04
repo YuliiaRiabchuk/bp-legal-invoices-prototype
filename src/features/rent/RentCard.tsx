@@ -9,7 +9,7 @@ import { rentStageForStatus } from './stages'
 import { useLab } from '@/lab/lab-state'
 import { useStore } from '@/state/store'
 import { VARIANT_UI } from '@/variants/registry'
-import type { Invoice } from '@/mock/types'
+import type { Doc1c, Invoice } from '@/mock/types'
 
 /**
  * Картка оренди: шапка з табами, степер етапів, вміст табу і липкий рейл
@@ -26,6 +26,8 @@ export function RentCard() {
   const [tab, setTab] = useState(ui.tabs[0])
   const [chronology, setChronology] = useState(false)
   const [printing, setPrinting] = useState<{ id: string; set: string[] } | null>(null)
+  const [viewDoc, setViewDoc] = useState<Doc1c | null>(null)
+  const [docFocus, setDocFocus] = useState<string | null>(null)
   const [errand, setErrand] = useState<CardActions['errand']>(null)
   const [invoiceErrand, setInvoiceErrand] = useState<CardActions['invoiceErrand']>(null)
 
@@ -33,14 +35,26 @@ export function RentCard() {
     () => ({
       tab,
       setTab: (t) => (t === 'Хронологія' ? setChronology(true) : setTab(t)),
-      openPrint: (inv, set) => setPrinting({ id: inv.id, set: (set ?? [inv]).map((i) => i.id) }),
+      openPrint: (inv, set) => {
+        setViewDoc(null)
+        setPrinting({ id: inv.id, set: (set ?? [inv]).map((i) => i.id) })
+      },
+      openDoc: (doc) => {
+        setPrinting(null)
+        setViewDoc(doc)
+      },
+      showInDocs: (id) => {
+        setDocFocus(id)
+        setTab('Документи')
+      },
+      docFocus,
       openChronology: () => setChronology(true),
       errand,
       setErrand,
       invoiceErrand,
       setInvoiceErrand,
     }),
-    [tab, errand, invoiceErrand],
+    [tab, errand, invoiceErrand, docFocus],
   )
 
   const frontier = rentStageForStatus(rent.status)
@@ -99,13 +113,17 @@ export function RentCard() {
           </div>
         </div>
         {/* Перегляд рахунку — docked-панель, як документи в CRM; сама не відкривається. */}
-        {live && (
+        {(live || viewDoc) && (
           <PrintDrawer
             rent={rent}
             invoice={live}
+            doc={viewDoc}
             set={liveSet}
             onPick={(inv) => setPrinting((p) => (p ? { ...p, id: inv.id } : p))}
-            onClose={() => setPrinting(null)}
+            onClose={() => {
+              setPrinting(null)
+              setViewDoc(null)
+            }}
           />
         )}
         </div>

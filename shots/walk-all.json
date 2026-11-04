@@ -178,6 +178,19 @@
       "cashClicks": 4
     },
     {
+      "variant": "0",
+      "scene": "from-1c",
+      "label": "12 Документи з 1С (BP-2060)",
+      "clicks": 2,
+      "mainShift": 0,
+      "surfaces": 1,
+      "worst": [
+        "rail"
+      ],
+      "hscroll": false,
+      "offscreen": 0
+    },
+    {
       "variant": "A",
       "scene": "start",
       "label": "1 Старт",
@@ -224,7 +237,7 @@
       "variant": "A",
       "scene": "extend",
       "label": "4а Продовження",
-      "clicks": 3,
+      "clicks": 4,
       "mainShift": 0,
       "surfaces": 1,
       "worst": [
@@ -232,7 +245,7 @@
       ],
       "hscroll": false,
       "offscreen": 0,
-      "invoiceClicks": 3
+      "invoiceClicks": 4
     },
     {
       "variant": "A",
@@ -246,7 +259,7 @@
       ],
       "hscroll": false,
       "offscreen": 0,
-      "covered": null
+      "covered": true
     },
     {
       "variant": "A",
@@ -342,6 +355,19 @@
       "hscroll": false,
       "offscreen": 0,
       "cashClicks": 2
+    },
+    {
+      "variant": "A",
+      "scene": "from-1c",
+      "label": "12 Документи з 1С (BP-2060)",
+      "clicks": 2,
+      "mainShift": 0,
+      "surfaces": 1,
+      "worst": [
+        "rail"
+      ],
+      "hscroll": false,
+      "offscreen": 0
     },
     {
       "variant": "C",
@@ -519,6 +545,20 @@
       "hscroll": false,
       "offscreen": 1,
       "cashClicks": 2
+    },
+    {
+      "variant": "C",
+      "scene": "from-1c",
+      "label": "12 Документи з 1С (BP-2060)",
+      "clicks": 2,
+      "mainShift": 0,
+      "surfaces": 2,
+      "worst": [
+        "book",
+        "rail"
+      ],
+      "hscroll": false,
+      "offscreen": 0
     }
   ],
   "fails": [
@@ -526,6 +566,14 @@
     "видно, яка оплата до якого рахунку (немає зв’язку платіжка → № рахунку)",
     "є «ким» (автора немає)",
     "стан помилки названо (окремого стану немає)",
-    "АВР видно під рахунком (АВР немає ніде)"
+    "АВР видно під рахунком (АВР немає ніде)",
+    "реєстр: «Рах. № 1101 від 21.10.2026»",
+    "реєстр: оплата «без рахунку»",
+    "клік по номеру відкриває рахунок у «Документах»",
+    "рахунок з 1С позначено",
+    "рахунок, анульований в 1С, лишився",
+    "АВР, анульований в 1С, лишився",
+    "коментар до рахунку видно",
+    "АВР відкривається на перегляд"
   ]
 }

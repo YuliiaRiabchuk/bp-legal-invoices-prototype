@@ -1,5 +1,5 @@
 import { createContext, useContext } from 'react'
-import type { Invoice } from '@/mock/types'
+import type { Doc1c, Invoice } from '@/mock/types'
 
 /**
  * Дії рівня картки, спільні для всіх варіантів: таби, друкарська форма,
@@ -13,6 +13,12 @@ export interface CardActions {
    * (оренда і застава на старті): у діалозі між ними перемикаються.
    */
   openPrint: (invoice: Invoice, set?: Invoice[]) => void
+  /** Перегляд і друк АВР чи видаткової з 1С (BP-2299). */
+  openDoc: (doc: Doc1c) => void
+  /** Відкрити рахунок у «Документах» і підсвітити його (BP-2308, крок 4). */
+  showInDocs: (invoiceId: string) => void
+  /** Рахунок, підсвічений у «Документах» після переходу з реєстру платежів. */
+  docFocus: string | null
   openChronology: () => void
   /** Доручення з рейлу: яку форму розкрити на кроці. `null` — немає. */
   errand: 'charge' | 'discount' | null

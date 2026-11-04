@@ -309,15 +309,16 @@ const DRIVERS = {
       await run.click('[data-testid="composer-submit"]')
       return true
     },
+    /** Продовження без кнопки (BP-2307): рахунок на +7 діб з реєстру. */
     async extend(run) {
-      await run.click('[data-testid="extend-open"]')
-      await run.date('[data-testid="extend-date"]', '2026-11-05')
-      await run.click('[data-testid="extend-submit"]')
+      await run.click('[data-testid="tab-Рахунки"]')
+      await run.click('[data-testid="registry-next-period-hint"]')
+      await run.date('[data-testid="composer-period-to"]', '2026-11-05')
+      await run.click('[data-testid="composer-submit"]')
       return true
     },
-    /** Продовження (а): «вистачить до» не його вісь — сцена 4б не застосовна. */
-    async coveredUntil() {
-      return null
+        async coveredUntil() {
+      return !!(await page.$('[data-testid="covered-until"]'))
     },
     async cancel(run) {
       await run.click('[data-testid="tab-Рахунки"]')
@@ -518,6 +519,34 @@ for (const v of VARIANTS) {
     ok('ПКО виписано', r.cashOrders.length === 1)
     ok('рахунки не змінились', JSON.stringify(r.invoices) === before)
     return { cashClicks: run.clicks }
+  })
+
+  await scene(v, 'from-1c', '12 Документи з 1С (BP-2060)', async (run) => {
+    const text = async () => page.evaluate(() => document.body.innerText)
+    if (await page.$('[data-testid="tab-Реєстр платежів"]')) {
+      await run.click('[data-testid="tab-Реєстр платежів"]')
+      const t = await text()
+      ok('реєстр: «Рах. № 1101 від 21.10.2026»', t.includes('Рах. № 1101 від 21.10.2026'))
+      ok('реєстр: оплата «без рахунку»', !!(await page.$('[data-testid="no-invoice"]')))
+      const ref = await page.$('[data-testid="invoice-ref"]')
+      if (ref) {
+        await ref.click()
+        run.clicks++
+        await sleep(400)
+      }
+      ok('клік по номеру відкриває рахунок у «Документах»', !!(await page.$('[data-testid="doc-row"][data-focused]')))
+    }
+    if (!(await page.$('[data-testid="documents-tree"]'))) await run.click('[data-testid="tab-Документи"]')
+    ok('рахунок з 1С позначено', !!(await page.$('[data-testid="source-1c"]')))
+    ok('рахунок, анульований в 1С, лишився', !!(await page.$('[data-testid="annulled-1c"]')))
+    ok('АВР, анульований в 1С, лишився', !!(await page.$('[data-testid="doc-1c"][data-annulled]')))
+    ok('коментар до рахунку видно', !!(await page.$('[data-testid="invoice-comment"]')))
+    const view = await page.$('[data-testid="doc-1c-view"]')
+    if (view) {
+      await view.click()
+      await sleep(300)
+    }
+    ok('АВР відкривається на перегляд', !!(await page.$('[data-testid="doc-sheet"]')))
   })
 }
 

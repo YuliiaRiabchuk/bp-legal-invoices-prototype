@@ -38,6 +38,7 @@ export type SceneId =
   | 'docs'
   | 'closed'
   | 'cash'
+  | 'from-1c'
   // Крайні стани (§6 брифу, shape §6): не сцени, а кадри для перевірки.
   | 'edge-zero'
   | 'edge-ten'
@@ -406,6 +407,50 @@ function buildScene(id: SceneId, variant: string): Rent {
       rent.docs.push(
         { id: 'avr-77', kind: 'avr', number: 'АВР-77', date: '2026-10-31', invoiceId: r.id, amount: gross(rent, r) / 2 },
         { id: 'vn-45', kind: 'waybill', number: 'ВН-45', date: '2026-10-23', invoiceId: sale.id, amount: gross(rent, sale) },
+      )
+      return rent
+    }
+
+    case 'from-1c': {
+      // BP-2060: що приходить з 1С пулом — рахунок, виписаний бухгалтерією,
+      // анулювання рахунку й АВР, оплата без рахунку. Плюс коментар до рахунку.
+      const rent = base({
+        status: 'ACTIVE',
+        positions: [VIBRO, GEN],
+        today: '2026-10-31',
+        issueAt: '2026-10-21',
+        returnAt: '2026-11-04',
+      })
+      const { r } = paidStart(rent, '1101', '1102', 15)
+      r.comment = { text: 'Клієнт просить оригінал рахунку поштою на юр. адресу', by: MANAGER.name, at: '22.10, 09:40' }
+      const delivery = charge(rent, { article: 'Доставка', service: 'Послуги доставки обладнання', net: 1000, createdAt: '28.10, 10:15' })
+      rent.charges.push(delivery)
+      // Наш рахунок на доставку бухгалтерія позначила в 1С на видалення: лишається «анульовано».
+      const annulled: Invoice = {
+        ...inv(rent, { kind: 'topup', number: '1160', date: '2026-10-28', lines: [lineOf(rent, delivery, '1160')] }),
+        cancelled: { by: '1С', at: '29.10, 18:20' },
+      }
+      // …і виписала доставку сама, в 1С: рахунок прийшов пулом.
+      const from1c: Invoice = {
+        ...inv(rent, {
+          kind: 'extra',
+          number: '1175',
+          date: '2026-10-30',
+          lines: [{ id: '1175-1', service: 'Послуги доставки обладнання', qty: 1, days: null, priceNet: 1000, vatRate: 20 }],
+        }),
+        source: '1c',
+        createdBy: '1С',
+        createdAt: '30.10, 11:02',
+      }
+      rent.invoices.push(annulled, from1c)
+      rent.payments.push(
+        pay('331', '2026-10-31', gross(rent, from1c), from1c),
+        // Платіжку бухгалтерія ще не прив'язала до рахунку — «без рахунку».
+        { ...pay('333', '2026-10-31', 5000, null, 'Оплата за оренду обладнання, рахунок не вказано'), confirmedBy: undefined },
+      )
+      rent.docs.push(
+        { id: 'avr-70', kind: 'avr', number: 'АВР-70', date: '2026-10-25', invoiceId: r.id, amount: gross(rent, r), annulled: { at: '27.10, 16:05' } },
+        { id: 'avr-71', kind: 'avr', number: 'АВР-71', date: '2026-10-27', invoiceId: r.id, amount: gross(rent, r) },
       )
       return rent
     }

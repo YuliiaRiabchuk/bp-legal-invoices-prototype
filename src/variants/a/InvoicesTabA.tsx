@@ -22,6 +22,8 @@ import {
   OverpayNote,
   PrintIcons,
   StatusBadge,
+  CommentLine,
+  SourceTag,
 } from '../shared/invoice-parts'
 
 /**
@@ -204,7 +206,11 @@ function Row({ rent, inv, onEdit, onNextPeriod }: { rent: Rent; inv: Invoice; on
         </td>
         <td className={cn('px-2 py-2', off ? 'text-muted-fg' : 'text-fg-2')}>{fmtDay(inv.date)}</td>
         <td className="px-2 py-2">
-          <p className={cn(off ? 'text-muted-fg line-through' : 'text-fg')}>{invoiceTitle(rent, inv)}</p>
+          <p className={cn(off ? 'text-muted-fg' : 'text-fg')}>
+            <span className={off ? 'line-through' : undefined}>{invoiceTitle(rent, inv)}</span>
+            <SourceTag inv={inv} className="ml-1.5" />
+          </p>
+          <CommentLine inv={inv} className="mt-0.5" />
           {off ? <CancelledLine inv={inv} /> : <DocRefs rent={rent} inv={inv} />}
         </td>
         <td className={cn('px-2 py-2 text-right font-medium', off ? 'text-muted-fg line-through' : 'text-fg')} data-amount-due="registry">

@@ -84,7 +84,7 @@ function Settlement({ rent, extra }: { rent: Rent; extra?: ReactNode }) {
   const t = totals(rent)
   const live = rent.invoices.filter((i) => !i.cancelled).sort(byFreshness)
   const open = unbilledCharges(rent)
-  const state = t.left > 0 ? 'борг' : t.balance > 0 ? 'переплата' : live.length ? 'оплачено' : 'розрахунок'
+  const state = t.left > 0 ? 'борг' : t.balance > 0 ? 'на балансі' : live.length ? 'оплачено' : 'розрахунок'
   const big = t.left > 0 ? t.left : t.balance > 0 ? t.balance : t.issued
   const rate = vatFor(rent, true)
   const go = (kind: 'charge' | 'discount') => {
@@ -97,7 +97,7 @@ function Settlement({ rent, extra }: { rent: Rent; extra?: ReactNode }) {
       testId="settlement"
       aside={
         <>
-          <Badge variant={state === 'борг' ? 'danger' : state === 'переплата' ? 'warning' : state === 'оплачено' ? 'success' : 'default'}>{state}</Badge>
+          <Badge variant={state === 'борг' ? 'danger' : state === 'на балансі' ? 'warning' : state === 'оплачено' ? 'success' : 'default'}>{state}</Badge>
           <Badge variant="outline" className="ml-auto">
             {rate ? 'з ПДВ' : 'без ПДВ'}
           </Badge>

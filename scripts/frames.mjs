@@ -33,7 +33,19 @@ const FRAMES = [
   ['0-start', '0', 'start', async (p) => p.click('[data-testid="row-chevron"]'), 'payment'],
   ['a-registry', 'A', 'five', tab('Рахунки')],
   ['a-payment', 'A', 'start', null, 'payment'],
-  ['a-extend', 'A', 'extend', async (p) => p.click('[data-testid="extend-open"]')],
+  ['a-covered', 'A', 'extend-paid'],
+  ['docs-1c', 'A', 'from-1c', tab('Документи')],
+  ['registry', 'A', 'from-1c', tab('Реєстр платежів')],
+  [
+    'drawer-comment',
+    'C',
+    'from-1c',
+    async (p) => {
+      await tab('Документи')(p)
+      await sleep(200)
+      await p.click('[data-testid="doc-row"][data-number="1101"] [data-testid="doc-print"]')
+    },
+  ],
   ['c-node', 'C', 'five', null, 'payment'],
   ['c-active', 'C', 'period'],
   ['c-covered', 'C', 'extend-paid'],

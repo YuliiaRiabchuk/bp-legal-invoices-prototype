@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Ban, CalendarPlus, Download, FileCheck2, Landmark, Loader2, MoreHorizontal, OctagonAlert, Pencil, Printer } from 'lucide-react'
+import { Ban, CalendarPlus, Download, FileCheck2, Landmark, Loader2, MessageSquare, MoreHorizontal, OctagonAlert, Pencil, Printer } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
@@ -259,13 +259,38 @@ export function CancelConfirm({ inv, onDone, className }: { inv: Invoice; onDone
   )
 }
 
-/** «скасовано — хто, коли — «коментар»». */
+/** «скасовано — хто, коли — «коментар»» або «анульовано в 1С — коли». */
 export function CancelledLine({ inv, className }: { inv: Invoice; className?: string }) {
   if (!inv.cancelled) return null
+  if (inv.cancelled.by === '1С' || !inv.cancelled.by)
+    return <span className={cn('text-label text-muted-fg', className)} data-testid="annulled-1c">анульовано — позначено на видалення в 1С, {inv.cancelled.at}</span>
   return (
     <span className={cn('text-label text-muted-fg', className)}>
-      скасовано — {inv.cancelled.by || 'з 1С'}, {inv.cancelled.at}
+      скасовано — {inv.cancelled.by}, {inv.cancelled.at}
       {inv.cancelled.comment && <> — «{inv.cancelled.comment}»</>}
+    </span>
+  )
+}
+
+/** Рахунок, що прийшов з 1С, а не виписаний у BP Space (BP-2298, крок 3). */
+export function SourceTag({ inv, className }: { inv: Invoice; className?: string }) {
+  if (inv.source !== '1c') return null
+  return (
+    <span className={cn('inline-flex items-center rounded-sm border border-border px-1 text-mono font-medium text-muted-fg', className)} title="Рахунок виписали в 1С; він прийшов у BP Space пулом" data-testid="source-1c">
+      з 1С
+    </span>
+  )
+}
+
+/** Коментар до рахунку одним рядком (BP-2298, крок 7). */
+export function CommentLine({ inv, className }: { inv: Invoice; className?: string }) {
+  if (!inv.comment) return null
+  return (
+    <span className={cn('flex items-start gap-1 text-label text-fg-2', className)} data-testid="invoice-comment">
+      <MessageSquare className="mt-0.5 size-3 shrink-0 text-muted-fg" aria-hidden />
+      <span className="min-w-0">
+        «{inv.comment.text}» <span className="text-muted-fg">— {inv.comment.by}, {inv.comment.at}</span>
+      </span>
     </span>
   )
 }

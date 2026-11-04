@@ -14,7 +14,7 @@ import { InvoiceComposer, type ComposerSeed } from './InvoiceComposer'
 import { OpenCharges } from './OpenCharges'
 import { Proposal } from './Proposal'
 import { statusView } from './invoice-status'
-import { CancelConfirm, CancelledLine, FailedNotice, InvoiceMenu, InvoiceTrail, NumberSlot, OverpayNote, PrintIcons, StatusBadge } from './invoice-parts'
+import { CancelConfirm, CancelledLine, CommentLine, FailedNotice, InvoiceMenu, InvoiceTrail, NumberSlot, OverpayNote, PrintIcons, SourceTag, StatusBadge } from './invoice-parts'
 
 /**
  * Варіант D — книга розрахунків (`docs/shape.md` §4.D).
@@ -209,6 +209,7 @@ function BookEntry({ rent, inv, onEdit }: { rent: Rent; inv: Invoice; onEdit: ()
           </span>
           <span className="text-muted-fg"> — {fmtDate(inv.date)} — </span>
           {invoiceTitle(rent, inv)}
+          <SourceTag inv={inv} className="ml-1.5" />
         </p>
         <span className="w-28 shrink-0 text-right text-body font-semibold tabular-nums text-fg" data-amount-due="book">
           {formatMoney(invoiceTotal(inv))}
@@ -222,6 +223,7 @@ function BookEntry({ rent, inv, onEdit }: { rent: Rent; inv: Invoice; onEdit: ()
         </span>
       </div>
       <div className="ml-5 flex max-w-2xl flex-col gap-1.5 empty:hidden">
+        <CommentLine inv={inv} className="mt-1" />
         <FailedNotice inv={inv} className="mt-1.5 max-w-lg" />
         <InvoiceTrail rent={rent} inv={inv} className="mt-1" signed />
         <OverpayNote rent={rent} inv={inv} />

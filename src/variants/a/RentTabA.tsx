@@ -5,16 +5,21 @@ import type { StageKey } from '@/mock/types'
 import { Proposal } from '../shared/Proposal'
 import { ProdPage } from '../shared/ProdPage'
 import { ProdRail } from '../shared/ProdRail'
+import { Coverage } from '../shared/Coverage'
+import { useStore } from '@/state/store'
 
 /**
  * Варіант A — вкладка «Рахунки». Сторінка кроку — сторінка проду без змін;
  * новий тільки таб у шапці картки: реєстр усіх рахунків з розкриттям, як
  * журнал у бухгалтерії. Вхід «новий рахунок» — у реєстрі.
  *
- * Продовження (а): кнопка «Продовжити оренду» в шапці.
+ * Продовження — як у BP-2307: кнопки «Продовжити оренду» для ЮЛ немає, на
+ * «В роботі» стоїть «грошей вистачить до», а рахунок на нові доби
+ * виписується з реєстру.
  */
 export function RentTabA({ stage }: { stage: StageKey }) {
   const { setTab, setInvoiceErrand } = useCard()
+  const { rent } = useStore()
   return (
     <ProdPage
       stage={stage}
@@ -25,10 +30,19 @@ export function RentTabA({ stage }: { stage: StageKey }) {
           setInvoiceErrand({ via: 'charge', chargeId: id })
           setTab('Рахунки')
         },
+        activeBlock: (
+          <Coverage
+            rent={rent}
+            onInvoiceTo={(to) => {
+              setInvoiceErrand({ via: 'period', to })
+              setTab('Рахунки')
+            }}
+          />
+        ),
         equipmentFooter: (
           <p className="flex flex-wrap items-center gap-1.5 text-label text-muted-fg">
-            Продовжити оренду — кнопка в шапці картки: вона одразу виписує рахунок на нові доби.
-            <Proposal note="Продовження (а): кнопка створює рахунок на новий період і зсуває повернення." />
+            Продовжити оренду — рахунком на новий період у вкладці «Рахунки»; кнопки продовження для ЮЛ немає.
+            <Proposal note="BP-2307: кнопку «Продовжити оренду» для ЮЛ прибрано, у ФО вона лишається. Оренда ЮЛ продовжується новим рахунком." />
           </p>
         ),
         closedNote: 'Оренду закрито. Рахунки відкриваються з вкладки «Рахунки», стан оренди від цього не змінюється.',

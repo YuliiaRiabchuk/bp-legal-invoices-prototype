@@ -223,36 +223,44 @@ export function totals(rent: Rent, mode: PayMode = 'booked') {
 }
 
 /**
- * «Грошей вистачить до» (G2, пропозиція): проведені гроші по рахунках оренди
- * з ПДВ, поділені на ставку за добу з ПДВ. Застава окремо. Підтвердження
- * менеджера не рахуються (D6).
+ * «Грошей вистачить до» за формулою BP-2307: проведені платіжні доручення по
+ * рахунках оренди (без застави) мінус нарахування (доставка, чистка…), залишок
+ * ділимо на ставку за добу з ПДВ. Підтвердження менеджера не рахуються (D6).
+ * Нарахування, закриті готівкою (ПКО), не віднімаються: їх оплатили не з цих
+ * грошей.
  *
- * Гроші на балансі (нерозпізнана платіжка, переплата) рахуються окремою
- * частиною: G2 говорить про платіжки по рахунках оренди, тож дата «за
- * рахунками» і дата «з балансом» показуються обидві, а не зливаються мовчки.
+ * Гроші на балансі (платіжка без рахунку) у формулу НЕ входять: «рахуються
+ * тільки оплати за рахунками». Вони повертаються окремо, щоб показати, на
+ * скільки діб їх вистачило б, якщо бухгалтерія прив'яже їх до рахунку.
  */
 export function coveredUntil(rent: Rent): {
   date: string
   days: number
   money: number
+  paid: number
+  charges: number
   balance: number
-  invoiced: { date: string; days: number; money: number }
+  withBalance: { date: string; days: number }
 } {
-  const isRentInv = (i: Invoice) => i.kind !== 'deposit'
-  const invoicedMoney = live(rent)
-    .filter(isRentInv)
-    .reduce((s, i) => {
-      const rentPart = i.lines.filter((l) => !l.from?.chargeId && !l.from?.deposit)
-      const share = invoiceTotal(i) ? rentPart.reduce((a, l) => a + lineGross(l), 0) / invoiceTotal(i) : 0
-      return s + Math.min(paidOf(rent, i), invoiceTotal(i)) * share
-    }, 0)
+  const paid = round2(
+    live(rent)
+      .filter((i) => i.kind !== 'deposit')
+      .reduce((s, i) => s + Math.min(paidOf(rent, i), invoiceTotal(i)), 0),
+  )
+  const cashPaid = new Set(rent.cashOrders.map((c) => c.chargeId).filter(Boolean))
+  const charges = round2(
+    rent.charges
+      .filter((c) => !c.cancelled && c.kind === 'charge' && !cashPaid.has(c.id))
+      .reduce((s, c) => s + c.net * (1 + vatFor(rent, c.vatable) / 100), 0),
+  )
+  const money = round2(Math.max(0, paid - charges))
   const balance = onBalance(rent)
   const rate = dailyGross(rent)
-  const at = (money: number) => {
-    const days = rate > 0 ? Math.floor(money / rate) : 0
-    return { date: addDays(rent.issueAt, days - 1), days, money: round2(money) }
+  const at = (sum: number) => {
+    const days = rate > 0 ? Math.floor(sum / rate) : 0
+    return { date: addDays(rent.issueAt, days - 1), days }
   }
-  return { ...at(invoicedMoney + balance), balance: round2(balance), invoiced: at(invoicedMoney) }
+  return { ...at(money), money, paid, charges, balance, withBalance: at(money + balance) }
 }
 
 /** Ім'я файлу PDF (D10, G3). */
