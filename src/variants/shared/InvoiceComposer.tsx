@@ -4,7 +4,8 @@ import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { DatePicker } from '@/components/ui/date-picker'
 import { addDays, chargeLine, daysIncl, fmtDay, lineGross, lineNet, orgOf, vatFor } from '@/domain/money'
-import { ARTICLE_BY_ID, kindFor, linesTotal, nextPeriod, openCharges, periodLines, rhythmEnd } from '@/domain/invoicing'
+import { ARTICLE_BY_ID, kindFor, lastRentInvoice, linesTotal, nextPeriod, openCharges, periodLines, rhythmEnd } from '@/domain/invoicing'
+import { useLab } from '@/lab/lab-state'
 import { formatAmount, formatMoney } from '@/lib/money'
 import { days as daysWord } from '@/lib/plural'
 import { cn } from '@/lib/utils'
@@ -69,6 +70,9 @@ export function InvoiceComposer({
   className?: string
 }) {
   const { rent, dispatch } = useStore()
+  // Варіант E — той самий бланк з покращеннями: ціна з довідника, попередній
+  // рахунок і перетин періодів, рахунки до формування, клавіатура.
+  const enhanced = useLab().step === 'E'
   const editing = seed.mode === 'edit' ? rent.invoices.find((i) => i.id === seed.invoiceId) : undefined
   const np = nextPeriod(rent)
   const charges = openCharges(rent)
@@ -190,6 +194,27 @@ export function InvoiceComposer({
 
   const patchFree = (key: string, patch: Partial<FreeRow>) => setFree((xs) => xs.map((f) => (f.key === key ? { ...f, ...patch } : f)))
 
+  // ── E: попередній рахунок оренди і перетин періодів ──
+  const prevRent = lastRentInvoice(rent)
+  const overlap = enhanced && rentOn && days > 0
+    ? rent.invoices.find(
+        (i) => !i.cancelled && i.id !== editing?.id && i.period && i.lines.some((l) => l.days != null) && i.period.from <= periodTo && i.period.to >= periodFrom,
+      )
+    : undefined
+  const depositTotal = rent.positions.reduce((s, p) => s + p.qty * p.deposit, 0)
+  const priceOf = (id: string) => {
+    const a = ARTICLE_BY_ID.get(id)
+    return a?.deposit ? depositTotal : a?.price
+  }
+  // E: Enter у ціні — новий рядок і фокус на його послугу.
+  const focusLast = useRef(false)
+  const lastPickerRef = useRef<HTMLButtonElement>(null)
+  useEffect(() => {
+    if (!focusLast.current) return
+    focusLast.current = false
+    lastPickerRef.current?.focus()
+  }, [free.length])
+
   const missingService = free.some((f) => f.checked && !f.articleId)
   const missingPrice = free.some((f) => f.checked && f.articleId && num(f.price) <= 0)
   const totalNet = linesNet(main) + linesNet(deposit)
@@ -213,7 +238,12 @@ export function InvoiceComposer({
       }}
       onKeyDown={(e) => {
         if (e.key === 'Escape') onClose(false)
+        if (enhanced && e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+          e.preventDefault()
+          submit()
+        }
       }}
+      data-enhanced={enhanced || undefined}
     >
       <header className="flex items-start gap-3 px-4 pb-2.5 pt-3">
         <div className="min-w-0 flex-1">
@@ -250,6 +280,11 @@ export function InvoiceComposer({
                   <Checkbox checked={rentOn} onCheckedChange={(v) => setRentOn(v === true)} aria-label={`Оренда з ${fmtDay(periodFrom)}`} data-testid="composer-rent-check" />
                   <div className="col-span-5 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1.5">
                     <span className={cn('text-body', rentOn ? 'font-medium text-fg' : 'text-fg-2')}>Оренда з {fmtDay(periodFrom)}</span>
+                    {enhanced && prevRent?.period && !editing && (
+                      <span className="text-label text-muted-fg" data-testid="composer-prev">
+                        після № {prevRent.number ?? '—'} ({fmtDay(prevRent.period.from)}–{fmtDay(prevRent.period.to)})
+                      </span>
+                    )}
                     {rentOn ? (
                       <>
                         <span className="text-body text-muted-fg">по</span>
@@ -375,8 +410,16 @@ export function InvoiceComposer({
                     <ServicePicker
                       value={f.articleId}
                       invalid={noService}
-                      triggerRef={i === 0 ? firstFreeRef : undefined}
-                      onSelect={(next) => patchFree(f.key, { articleId: next.id, service: next.service, vatable: next.vatable })}
+                      triggerRef={i === 0 ? firstFreeRef : i === free.length - 1 ? lastPickerRef : undefined}
+                      onSelect={(next) => {
+                        const p = priceOf(next.id)
+                        patchFree(f.key, {
+                          articleId: next.id,
+                          service: next.service,
+                          vatable: next.vatable,
+                          ...(enhanced && p && !f.price ? { price: String(p) } : {}),
+                        })
+                      }}
                     />
                     {/* Підрядок є завжди: поява підказки не штовхає «Сформувати» (вимір зсуву). */}
                     <p className={cn('mt-1 truncate text-label', a?.deposit ? 'text-notice-fg' : 'text-muted-fg')}>
@@ -401,6 +444,12 @@ export function InvoiceComposer({
                     inputMode="decimal"
                     placeholder="0"
                     onChange={(e) => patchFree(f.key, { price: e.target.value })}
+                    onKeyDown={(e) => {
+                      if (!enhanced || e.key !== 'Enter' || e.ctrlKey || e.metaKey) return
+                      e.preventDefault()
+                      focusLast.current = true
+                      setFree((xs) => [...xs, blankFree()])
+                    }}
                     aria-label="Ціна без ПДВ"
                     aria-invalid={(f.checked && !!a && num(f.price) <= 0 && f.price !== '') || undefined}
                     data-testid="composer-free-price"
@@ -453,13 +502,45 @@ export function InvoiceComposer({
             Буде два рахунки: оренда і послуги {formatMoney(linesTotal(main))} з ПДВ, застава {formatMoney(linesTotal(deposit))} без ПДВ. Застава з орендою не сумується.
           </p>
         )}
+        {/* E: які рахунки народяться — ще до «Сформувати». Застава окремо, завжди. */}
+        {enhanced && (
+          <div className="mt-2.5 flex min-h-6 flex-wrap items-center gap-1.5" data-testid="composer-preview">
+            <span className="text-label text-muted-fg">{count ? 'Буде сформовано:' : 'Позначте, що піде в рахунок.'}</span>
+            {main.length > 0 && (
+              <span className="inline-flex items-center gap-1.5 rounded-md border border-border bg-muted/40 px-2 py-0.5 text-label">
+                <span className="text-muted-fg">№ очікується</span>
+                <span className="text-fg">{rentOn ? `оренда ${fmtDay(periodFrom)}–${fmtDay(periodTo)}` : 'послуги'}{rentOn && main.length > rentRows.length ? ' і послуги' : ''}</span>
+                <span className="font-medium tabular-nums text-fg">{formatMoney(linesTotal(main))}</span>
+              </span>
+            )}
+            {deposit.length > 0 && (
+              <span className="inline-flex items-center gap-1.5 rounded-md border border-border bg-muted/40 px-2 py-0.5 text-label">
+                <span className="text-muted-fg">№ очікується</span>
+                <span className="text-fg">застава, без ПДВ</span>
+                <span className="font-medium tabular-nums text-fg">{formatMoney(linesTotal(deposit))}</span>
+              </span>
+            )}
+          </div>
+        )}
         {/* Рядок стану завжди на місці: червоний текст з'являється, не зсуваючи кнопки. */}
-        <p className={cn('mt-2 min-h-5 text-label', missingService || missingPrice ? 'text-danger-fg' : 'text-muted-fg')} data-testid="composer-invalid">
-          {missingService ? 'У рядку без послуги виберіть послугу або зніміть галочку.' : missingPrice ? 'Вкажіть ціну в рядку з послугою.' : ''}
+        <p className={cn('mt-2 min-h-5 text-label', missingService || missingPrice ? 'text-danger-fg' : overlap ? 'text-warning-fg' : 'text-muted-fg')} data-testid="composer-invalid">
+          {missingService
+            ? 'У рядку без послуги виберіть послугу або зніміть галочку.'
+            : missingPrice
+              ? 'Вкажіть ціну в рядку з послугою.'
+              : overlap?.period
+                ? `Період перетинається з рахунком № ${overlap.number ?? '—'} (${fmtDay(overlap.period.from)}–${fmtDay(overlap.period.to)}): ці доби будуть виставлені двічі.`
+                : ''}
         </p>
       </div>
 
       <footer className="flex items-center justify-end gap-2 border-t border-border bg-muted/30 px-4 py-2.5">
+        {enhanced && (
+          <span className="mr-auto text-label text-muted-fg">
+            <kbd className="rounded-sm border border-border bg-card px-1 font-mono text-mono">Enter</kbd> у ціні — новий рядок ·{' '}
+            <kbd className="rounded-sm border border-border bg-card px-1 font-mono text-mono">Ctrl+Enter</kbd> — сформувати
+          </span>
+        )}
         <Button type="button" variant="secondary" onClick={() => onClose(false)}>
           Скасувати
         </Button>

@@ -40,7 +40,7 @@ const CHROME = argOf(
 )
 const SHOTS = process.argv.includes('--shots')
 const JSON_OUT = argOf('--json', null)
-const VARIANTS = argOf('--variants', '0,A,C').split(',')
+const VARIANTS = argOf('--variants', '0,A,C,E').split(',')
 const W = 1366
 const H = 768
 const OUT_DIR = 'shots'
@@ -417,6 +417,22 @@ const DRIVERS = {
     },
   },
 
+}
+
+/**
+ * Варіант E — реєстр A з покращеним бланком. Відмінність для прогону одна:
+ * ціна послуги підставляється з довідника, тож доставку не треба друкувати.
+ */
+DRIVERS.E = {
+  ...DRIVERS.A,
+  async delivery(run) {
+    await run.click('[data-testid="tab-Рахунки"]')
+    await run.click('[data-testid="registry-new"]')
+    await run.click('[data-testid="composer-free"] [data-testid="service-combobox-trigger"]')
+    await run.click('[data-testid="service-option-delivery"]')
+    await run.click('[data-testid="composer-submit"]')
+    return true
+  },
 }
 
 /* ── Сцени ─────────────────────────────────────────────────────────── */

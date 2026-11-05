@@ -47,6 +47,22 @@ const FRAMES = [
     },
   ],
   ['c-node', 'C', 'five', null, 'payment'],
+  [
+    'e-composer',
+    'E',
+    'period',
+    async (p) => {
+      await tab('Рахунки')(p)
+      await sleep(200)
+      await p.click('[data-testid="registry-next-period-hint"]')
+      await sleep(200)
+      await p.click('[data-testid="composer-add-line"]')
+      await sleep(200)
+      await p.click('[data-testid="composer-free"] [data-testid="service-combobox-trigger"]')
+      await sleep(200)
+      await p.click('[data-testid="service-option-delivery"]')
+    },
+  ],
   ['c-active', 'C', 'period'],
   ['c-covered', 'C', 'extend-paid'],
   ['c-ten', 'C', 'edge-ten'],

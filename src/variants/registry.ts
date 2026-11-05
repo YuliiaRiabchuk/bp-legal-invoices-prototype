@@ -34,5 +34,12 @@ export const VARIANT_UI: Record<string, VariantUi> = {
     Rail: RailA,
     Tabs: { Документи: DocumentsTab, Рахунки: InvoicesTabA, 'Реєстр платежів': PaymentsRegistry },
   },
+  // E — реєстр рахунків з A; бланк вмикає покращення сам, за кодом варіанта.
+  E: {
+    tabs: ['Оренда', 'Документи', 'Рахунки', 'Оренди клієнта', 'Реєстр платежів', 'Клієнт', 'Хронологія'],
+    RentTab: RentTabA,
+    Rail: RailA,
+    Tabs: { Документи: DocumentsTab, Рахунки: InvoicesTabA, 'Реєстр платежів': PaymentsRegistry },
+  },
   C: { tabs: PROD_TABS, RentTab: RentTabC, Rail: RailC, Tabs: { Документи: DocumentsTab, 'Реєстр платежів': PaymentsRegistry } },
 }

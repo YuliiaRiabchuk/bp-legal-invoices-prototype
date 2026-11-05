@@ -23,14 +23,16 @@ export interface Article {
   deposit?: boolean
   /** Реалізація: під неї видаткова, не АВР (F10). */
   sale?: boolean
+  /** Ціна без ПДВ з довідника (варіант E підставляє її сам). Заглушки. */
+  price?: number
 }
 
 export const ARTICLES: Article[] = [
-  { id: 'delivery', label: 'Доставка', service: 'Послуги доставки обладнання', vatable: true },
-  { id: 'cleaning', label: 'Чистка обладнання', service: 'Послуги чистки обладнання', vatable: true },
-  { id: 'fine', label: 'Штрафні санкції', service: 'Штраф за пошкодження обладнання', vatable: false },
+  { id: 'delivery', label: 'Доставка', service: 'Послуги доставки обладнання', vatable: true, price: 1000 },
+  { id: 'cleaning', label: 'Чистка обладнання', service: 'Послуги чистки обладнання', vatable: true, price: 600 },
+  { id: 'fine', label: 'Штрафні санкції', service: 'Штраф за пошкодження обладнання', vatable: false, price: 500 },
   { id: 'extra', label: 'Додаткові витрати', service: 'Додаткові послуги', vatable: true },
-  { id: 'sale', label: 'Реалізація: витратні матеріали', service: 'Диск алмазний відрізний 230 мм', vatable: true, sale: true },
+  { id: 'sale', label: 'Реалізація: витратні матеріали', service: 'Диск алмазний відрізний 230 мм', vatable: true, sale: true, price: 450 },
   { id: 'deposit', label: 'Гарантійний платіж', service: 'Гарантійний платіж за оренду обладнання', vatable: false, deposit: true },
 ]
 
