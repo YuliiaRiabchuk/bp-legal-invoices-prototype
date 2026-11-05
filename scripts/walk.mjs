@@ -164,6 +164,20 @@ class Run {
     this.clicks++
     await this.snap()
   }
+  /** Дата в DatePicker з CRM: набрати дд.мм.рррр і Enter, як менеджер. */
+  async typeDate(sel, text) {
+    const el = await page.waitForSelector(sel, { visible: true, timeout: 5000 })
+    await this.seen(el)
+    await el.click()
+    this.clicks++
+    // Виділити наявну дату клавіатурою й набрати нову, як менеджер.
+    await page.keyboard.down('Control')
+    await page.keyboard.press('KeyA')
+    await page.keyboard.up('Control')
+    await el.type(text)
+    await page.keyboard.press('Enter')
+    await this.snap()
+  }
   /** Дата в `<input type=date>`: один клік і набір, як менеджер. */
   async date(sel, iso) {
     const el = await page.waitForSelector(sel, { visible: true, timeout: 5000 })
@@ -297,7 +311,8 @@ const DRIVERS = {
     async delivery(run) {
       await run.click('[data-testid="tab-Рахунки"]')
       await run.click('[data-testid="registry-new"]')
-      await run.select('[data-testid="composer-free-article"]', 'delivery')
+      await run.click('[data-testid="composer-free"] [data-testid="service-combobox-trigger"]')
+      await run.click('[data-testid="service-option-delivery"]')
       await run.type('[data-testid="composer-free-price"]', 1000)
       await run.click('[data-testid="composer-submit"]')
       return true
@@ -313,7 +328,7 @@ const DRIVERS = {
     async extend(run) {
       await run.click('[data-testid="tab-Рахунки"]')
       await run.click('[data-testid="registry-next-period-hint"]')
-      await run.date('[data-testid="composer-period-to"]', '2026-11-05')
+      await run.typeDate('[data-testid="composer-period-to"]', '05.11.2026')
       await run.click('[data-testid="composer-submit"]')
       return true
     },
@@ -358,7 +373,8 @@ const DRIVERS = {
     /** Вузол «Рахунки на оплату» на самому кроці: «+ Рахунок» одразу під рукою. */
     async delivery(run) {
       await run.click('[data-testid="book-new"]')
-      await run.select('[data-testid="composer-free-article"]', 'delivery')
+      await run.click('[data-testid="composer-free"] [data-testid="service-combobox-trigger"]')
+      await run.click('[data-testid="service-option-delivery"]')
       await run.type('[data-testid="composer-free-price"]', 1000)
       await run.click('[data-testid="composer-submit"]')
       return true
@@ -371,7 +387,7 @@ const DRIVERS = {
     /** Продовження (б): кнопки немає — рахунок на новий період «по» +7 діб. */
     async extend(run) {
       await run.click('[data-testid="book-next-period"]')
-      await run.date('[data-testid="composer-period-to"]', '2026-11-05')
+      await run.typeDate('[data-testid="composer-period-to"]', '05.11.2026')
       await run.click('[data-testid="composer-submit"]')
       return true
     },

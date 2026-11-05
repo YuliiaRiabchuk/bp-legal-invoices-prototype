@@ -209,7 +209,7 @@
       "variant": "A",
       "scene": "delivery",
       "label": "2 Доставка після видачі",
-      "clicks": 5,
+      "clicks": 6,
       "mainShift": 0,
       "surfaces": 1,
       "worst": [
@@ -217,7 +217,7 @@
       ],
       "hscroll": false,
       "offscreen": 0,
-      "invoiceClicks": 5
+      "invoiceClicks": 6
     },
     {
       "variant": "A",
@@ -389,7 +389,7 @@
       "variant": "C",
       "scene": "delivery",
       "label": "2 Доставка після видачі",
-      "clicks": 4,
+      "clicks": 5,
       "mainShift": 0,
       "surfaces": 2,
       "worst": [
@@ -398,7 +398,7 @@
       ],
       "hscroll": false,
       "offscreen": 0,
-      "invoiceClicks": 4
+      "invoiceClicks": 5
     },
     {
       "variant": "C",
